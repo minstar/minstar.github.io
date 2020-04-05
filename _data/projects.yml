@@ -1,0 +1,39 @@
+- layout: top-middle
+  name: Learning by Semantic Similarity Makes Abstractive Summarization Better
+  link: https://arxiv.org/pdf/2002.07767.pdf
+  github: https://github.com/icml-2020-nlp/semsim
+  quote: >
+    Wonjin Yoon, Yoon Sun Yeo, **Minbyul Jeong**, Bong-Jun Yi, Jaewoo Kang
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
+  name: Graph Transformer Networks
+  link: https://papers.nips.cc/paper/9367-graph-transformer-networks.pdf
+  github: https://github.com/seongjunyun/Graph_Transformer_Networks
+  quote: >
+    Seongjun Yun, **Minbyul Jeong**, Raehyun Kim, Jaewoo Kang, Hyunwoo J. Kim
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
+  name: Learning by Semantic Similarity Makes Abstractive Summarization Better
+  link: https://arxiv.org/pdf/2002.07767.pdf
+  github: https://github.com/icml-2020-nlp/semsim
+  quote: >
+    Wonjin Yoon, Yoon Sun Yeo, **Minbyul Jeong**, Bong-Jun Yi, Jaewoo Kang
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
+  name: Learning by Semantic Similarity Makes Abstractive Summarization Better
+  link: https://arxiv.org/pdf/2002.07767.pdf
+  github: https://github.com/icml-2020-nlp/semsim
+  quote: >
+    Wonjin Yoon, Yoon Sun Yeo, **Minbyul Jeong**, Bong-Jun Yi, Jaewoo Kang
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
+  name: Learning by Semantic Similarity Makes Abstractive Summarization Better
+  link: https://arxiv.org/pdf/2002.07767.pdf
+  github: https://github.com/icml-2020-nlp/semsim
+  quote: >
+    Wonjin Yoon, Yoon Sun Yeo, **Minbyul Jeong**, Bong-Jun Yi, Jaewoo Kang
+  description: | # this will include new lines to allow paragraphs

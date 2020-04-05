@@ -1,0 +1,20 @@
+- layout: left
+  affiliation: DMIS lab, Korea University
+  link: https://dmis.korea.ac.kr/
+  dates: March 2019 - present
+  job_title: Ph.D (MS integrated) Student at Korea University
+  description: | # this will include new lines to allow paragraphs
+    Department of Computer Science and Engineering
+
+    Advisor: Prof. Jaewoo Kang
+
+    GPA: 4.5 / 4.5
+
+- layout: left
+  affiliation: Korea University
+  dates: March 2015 - February 2019
+  job_title: B.S. at Korea University
+  description: | # this will include new lines to allow paragraphs
+    Department of Computer Science and Engineering
+
+    GPA: 3.65 / 4.5

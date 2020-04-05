@@ -1,0 +1,59 @@
+# Site
+repository: sproogen/resume-theme
+favicon: images/favicon.ico
+
+# Personal info
+name: Minbyul Jeong
+title: Ph.D (MS integrated) Student at Korea University
+email: minbyuljeong@korea.ac.kr
+website: minstar.github.io
+
+# Social links
+twitter_username: Minbyul Jeong
+github_username:  minstar
+# dribbble_username: jekyll
+# facebook_username: minbyuljeong
+# flickr_username: jekyll
+instagram_username: minbyuljeong
+# linkedin_username: minbyuljeong
+# pinterest_username: jekyll
+# youtube_username: globalmtb
+# googleplus_username: +jekyll
+
+# About Section
+# about_title: About Me
+about_profile_image: images/minstar.jpg
+about_content: | # this will include new lines to allow paragraphs
+  I am a Ph.D (MS integrated) student in the Department of Computer Science and Engineering at Korea University (DMIS Lab) advised by Prof. Jaewoo Kang. My research interests are Natural Language Processing and Graph neural network. Currently, I am focusing on solving biomedical NLP tasks.
+
+  I am most skilled in: <mark>python</mark> (e.g., tensorflow and pytorch)
+
+# Projects Section
+projects_title: Publications
+
+# Experience Section
+# experience_title: Experience
+
+# Education Section
+# educaton_title: Education
+
+# More Section
+# more_title: A Little More About Me
+more_content: | # this will include new lines to allow paragraphs
+  Alongside my interests in networks and software engineering some of my other interests and hobbies are:
+   - Basketball
+   - League of Legends
+   - Drinking beer
+
+# Footer
+footer_show_references: true
+
+# Build settings
+remote_theme: sproogen/resume-theme
+
+sass:
+  sass_dir: _sass
+  style: compressed
+
+plugins:
+ - jekyll-seo-tag
