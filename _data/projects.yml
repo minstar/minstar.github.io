@@ -23,7 +23,7 @@
   description: | # this will include new lines to allow paragraphs
 
 - layout: top-middle
-  name: HATS: A Hierarchical Graph Attention Network for Stock Movement Prediction
+  name: HATS A Hierarchical Graph Attention Network for Stock Movement Prediction
   link: https://arxiv.org/pdf/1908.07999.pdf
   github: https://github.com/dmis-lab/hats
   quote: >
