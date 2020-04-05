@@ -3,7 +3,7 @@
   link: https://arxiv.org/pdf/2002.07767.pdf
   github: icml-2020-nlp/semsim
   quote: >
-    Wonjin Yoon, Yoon Sun Yeo, __Minbyul Jeong__, Bong-Jun Yi, Jaewoo Kang
+    Wonjin Yoon, Yoon Sun Yeo, '''Minbyul Jeong''', Bong-Jun Yi, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
 
 - layout: top-middle
@@ -11,7 +11,7 @@
   link: https://papers.nips.cc/paper/9367-graph-transformer-networks.pdf
   github: seongjunyun/Graph_Transformer_Networks
   quote: >
-    Seongjun Yun, __Minbyul Jeong__, Raehyun Kim, Jaewoo Kang, Hyunwoo J. Kim
+    Seongjun Yun, '''Minbyul Jeong''', Raehyun Kim, Jaewoo Kang, Hyunwoo J. Kim
   description: | # this will include new lines to allow paragraphs
 
 - layout: top-middle
@@ -19,7 +19,7 @@
   link: https://arxiv.org/pdf/1909.08229.pdf
   github: dmis-lab/bioasq-biobert
   quote: >
-    Wonjin Yoon, Jinhyuk Lee, Donghyeon Kim, __Minbyul Jeong__, Jaewoo Kang
+    Wonjin Yoon, Jinhyuk Lee, Donghyeon Kim, '''Minbyul Jeong''', Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
 
 - layout: top-middle
@@ -27,13 +27,13 @@
   link: https://arxiv.org/pdf/1908.07999.pdf
   github: dmis-lab/hats
   quote: >
-    Raehyun Kim, Chan Ho So, __Minbyul Jeong__, Sanghoon Lee, Jinkyu Kim, Jaewoo Kang
+    Raehyun Kim, Chan Ho So, '''Minbyul Jeong''', Sanghoon Lee, Jinkyu Kim, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
 
 - layout: top-middle
-  name: A neural named entity recognition and multi-type normalization tool for biomedical te/t mining
+  name: A neural named entity recognition and multi-type normalization tool for biomedical text mining
   link: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8730332
   github: dmis-lab/bern
   quote: >
-    Donghyeon Kim, Jinhyuk Lee, Chan Ho So, Hwisang Jeon, __Minbyul Jeong__, Yonghwa Yhoi, Wonjin Yoon, Mujeen Sung, Jaewoo Kang
+    Donghyeon Kim, Jinhyuk Lee, Chan Ho So, Hwisang Jeon, '''Minbyul Jeong''', Yonghwa Yhoi, Wonjin Yoon, Mujeen Sung, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
