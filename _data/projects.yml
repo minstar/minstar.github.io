@@ -1,7 +1,7 @@
 - layout: top-middle
   name: Learning by Semantic Similarity Makes Abstractive Summarization Better
   link: https://arxiv.org/pdf/2002.07767.pdf
-  github: https://github.com/icml-2020-nlp/semsim
+  github: github.com/icml-2020-nlp/semsim
   quote: >
     Wonjin Yoon, Yoon Sun Yeo, __Minbyul Jeong__, Bong-Jun Yi, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
@@ -9,7 +9,7 @@
 - layout: top-middle
   name: Graph Transformer Networks
   link: https://papers.nips.cc/paper/9367-graph-transformer-networks.pdf
-  github: https://github.com/seongjunyun/Graph_Transformer_Networks
+  github: github.com/seongjunyun/Graph_Transformer_Networks
   quote: >
     Seongjun Yun, __Minbyul Jeong__, Raehyun Kim, Jaewoo Kang, Hyunwoo J. Kim
   description: | # this will include new lines to allow paragraphs
@@ -17,7 +17,7 @@
 - layout: top-middle
   name: Pre-trained Language Model for Biomedical Question Answering
   link: https://arxiv.org/pdf/1909.08229.pdf
-  github: https://github.com/dmis-lab/bioasq-biobert
+  github: github.com/dmis-lab/bioasq-biobert
   quote: >
     Wonjin Yoon, Jinhyuk Lee, Donghyeon Kim, __Minbyul Jeong__, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
@@ -25,7 +25,7 @@
 - layout: top-middle
   name: HATS A Hierarchical Graph Attention Network for Stock Movement Prediction
   link: https://arxiv.org/pdf/1908.07999.pdf
-  github: https://github.com/dmis-lab/hats
+  github: github.com/dmis-lab/hats
   quote: >
     Raehyun Kim, Chan Ho So, __Minbyul Jeong__, Sanghoon Lee, Jinkyu Kim, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
@@ -33,7 +33,7 @@
 - layout: top-middle
   name: A neural named entity recognition and multi-type normalization tool for biomedical te/t mining
   link: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8730332
-  github: https://github.com/dmis-lab/bern
+  github: github.com/dmis-lab/bern
   quote: >
     Donghyeon Kim, Jinhyuk Lee, Chan Ho So, Hwisang Jeon, __Minbyul Jeong__, Yonghwa Yhoi, Wonjin Yoon, Mujeen Sung, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
