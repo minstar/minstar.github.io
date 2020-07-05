@@ -1,4 +1,20 @@
 - layout: top-middle
+  name: Transferability of Natural Language Inference to Biomedical Question Answering
+  link: https://arxiv.org/abs/2007.00217
+  github: dmis-lab/bioasq8b
+  quote: >
+    '''Minbyul Jeong''', Mujeen Sung, Gangwoo Kim, Donghyeon Kim, Wonjin Yoon, Jaehyo Yoo, Jaewoo Kang
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
+  name: Answering Questions on COVID-19 in Real-Time
+  link: https://openreview.net/forum?id=Wssn20iNf6j
+  github: dmis-lab/covidAsk
+  quote: >
+    Jinhyuk Lee, Sean S. Yi, '''Minbyul Jeong''', Mujeen Sung, Wonjin Yoon, Yonghwa Choi, Miyoung Ko, Jaewoo Kang
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
   name: Learning by Semantic Similarity Makes Abstractive Summarization Better
   link: https://arxiv.org/pdf/2002.07767.pdf
   github: icml-2020-nlp/semsim
