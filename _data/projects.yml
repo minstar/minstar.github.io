@@ -15,6 +15,13 @@
   description: | # this will include new lines to allow paragraphs
 
 - layout: top-middle
+  name: Building a PubMed knowledge graph
+  link: https://www.nature.com/articles/s41597-020-0543-2
+  quote: >
+    Jian Xu, Sunkyu Kim, Min Song, '''Minbyul Jeong''', Donghyeon Kim, Jaewoo Kang, Justing F. Rousseau, Xin Li, Weijia Xu, Vetle I. Torvik, Yi Bu, Chongyan Chen, Islam Akef Ebeid, Daifeng Li, Ying Ding
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
   name: Learning by Semantic Similarity Makes Abstractive Summarization Better
   link: https://arxiv.org/pdf/2002.07767.pdf
   github: icml-2020-nlp/semsim
