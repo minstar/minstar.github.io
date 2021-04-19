@@ -1,4 +1,11 @@
 - layout: top-middle
+  name: Regularizing Models via Pointwise Mutual Information for Named Entity Recognition
+  link: https://arxiv.org/abs/2104.07249
+  quote: >
+    '''Minbyul Jeong''', Jaewoo Kang
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
   name: Transferability of Natural Language Inference to Biomedical Question Answering
   link: https://arxiv.org/abs/2007.00217
   github: dmis-lab/bioasq8b
@@ -19,14 +26,6 @@
   link: https://www.nature.com/articles/s41597-020-0543-2
   quote: >
     Jian Xu, Sunkyu Kim, Min Song, '''Minbyul Jeong''', Donghyeon Kim, Jaewoo Kang, Justing F. Rousseau, Xin Li, Weijia Xu, Vetle I. Torvik, Yi Bu, Chongyan Chen, Islam Akef Ebeid, Daifeng Li, Ying Ding
-  description: | # this will include new lines to allow paragraphs
-
-- layout: top-middle
-  name: Learning by Semantic Similarity Makes Abstractive Summarization Better
-  link: https://arxiv.org/pdf/2002.07767.pdf
-  github: icml-2020-nlp/semsim
-  quote: >
-    Wonjin Yoon, Yoon Sun Yeo, '''Minbyul Jeong''', Bong-Jun Yi, Jaewoo Kang
   description: | # this will include new lines to allow paragraphs
 
 - layout: top-middle

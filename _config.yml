@@ -24,7 +24,7 @@ instagram_username: minbyuljeong
 # about_title: About Me
 about_profile_image: images/minstar.jpg
 about_content: | # this will include new lines to allow paragraphs
-  I am a Ph.D (MS integrated) student in the Department of Computer Science and Engineering at Korea University (DMIS Lab) advised by Prof. Jaewoo Kang. My research interests are Natural Language Processing and Graph neural network. Currently, I am focusing on solving biomedical NLP tasks.
+  I am a Ph.D student in the Department of Computer Science and Engineering at Korea University (DMIS Lab) advised by Prof. Jaewoo Kang. My research interests are Natural Language Processing and Graph neural network. Currently, I am focusing on solving biomedical NLP tasks.
 
   I am most skilled in: <mark>python</mark> (e.g., tensorflow and pytorch)
 
@@ -36,6 +36,8 @@ projects_title: Publications
 
 # Education Section
 # educaton_title: Education
+
+awards_title: Awards
 
 # More Section
 # more_title: A Little More About Me
