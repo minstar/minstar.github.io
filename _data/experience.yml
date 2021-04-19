@@ -10,14 +10,14 @@
 
 - layout: left
   name: BioASQ8B
-  link: https://dmis.korea.ac.kr/
+  link: https://github.com/dmis-lab/bioasq8b
   dates: March 2020 - May 2020
   description: | # this will include new lines to allow paragraphs
-    1st place at BioASQ8B
+    1st place at BioASQ8B: A challenge on large-scale biomedical semantic indexing and question answering (Phase B)
 
 - layout: left
   name: BioASQ7B
-  link: https://dmis.korea.ac.kr/
+  link: https://github.com/dmis-lab/bioasq-biobert
   dates: March 2019 - May 2019
   description: | # this will include new lines to allow paragraphs
-    1st place at BioASQ7B
+    1st place at BioASQ7B: A challenge on large-scale biomedical semantic indexing and question answering (Phase B)
