@@ -1,5 +1,38 @@
 - layout: top-middle
-  name: Regularizing Models via Pointwise Mutual Information for Named Entity Recognition
+  name: Enhancing Label Consistency on Document-level Named Entity Recognition
+  github: https://github.com/dmis-lab/ConNER
+  quote: >
+    '''Minbyul Jeong''', Jaewoo Kang
+  description: | 
+
+- layout: top-middle
+  name: BERN2 an advanced neural biomedical named entity recognition and normalization tool
+  link: https://arxiv.org/abs/2201.02080
+  link: http://bern2.korea.ac.kr
+  github: https://github.com/dmis-lab/BERN2
+  quote: >
+    Mujeen Sung, '''Minbyul Jeong''', Yonghwa Choi, Donghyeon Kim, Jinhyuk Lee, Jaewoo Kang
+  description: We present BERN2 (Advanced Biomedical Entity Recognition and Normalization), a tool that improves the previous neural network-based NER tool by employing a multi-task NER model and neural network-based NEN models to achieve much faster and more accurate inference. | 
+
+- layout: top-middle
+  name: Data-Centric and Model-Centric Approaches for Biomedical Question Answering
+  link: https://dl.acm.org/doi/abs/10.1007/978-3-031-13643-6_16
+  github: https://github.com/dmis-lab/bioasq9b-dmis
+  quote: >
+    Wonjin Yoon, Jaehyo Yoo, Sumin Seo, Mujeen Sung, '''Minbyul Jeong''', Gangwoo Kim, Jaewoo Kang
+  description: We achieve 1st place in two batches at 9B BioASQ Challenge | 
+
+
+- layout: top-middle
+  name: Graph Transformer Networks Learning Meta-path Graphs to Improve GNNs
+  link: https://arxiv.org/abs/2106.06218
+  github: https://github.com/seongjunyun/Graph_Transformer_Networks
+  quote: >
+    Seongjun Yun, '''Minbyul Jeong''', Sungdong Yoo, Seunghun Lee, SeanS. Yi, Raehyun Kim, Jaewoo Kang, Hyunwoo J. Kim
+  description: | # this will include new lines to allow paragraphs
+
+- layout: top-middle
+  name: Regularization for Long Named Entity Recognition
   link: https://arxiv.org/abs/2104.07249
   quote: >
     '''Minbyul Jeong''', Jaewoo Kang
