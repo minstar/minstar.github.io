@@ -12,7 +12,7 @@
   github: https://github.com/dmis-lab/BERN2
   quote: >
     Mujeen Sung, '''Minbyul Jeong''', Yonghwa Choi, Donghyeon Kim, Jinhyuk Lee, Jaewoo Kang
-  description: We present BERN2 (Advanced Biomedical Entity Recognition and Normalization), a tool that improves the previous neural network-based NER tool by employing a multi-task NER model and neural network-based NEN models to achieve much faster and more accurate inference. | 
+  description: | 
 
 - layout: top-middle
   name: Data-Centric and Model-Centric Approaches for Biomedical Question Answering
@@ -20,8 +20,7 @@
   github: https://github.com/dmis-lab/bioasq9b-dmis
   quote: >
     Wonjin Yoon, Jaehyo Yoo, Sumin Seo, Mujeen Sung, '''Minbyul Jeong''', Gangwoo Kim, Jaewoo Kang
-  description: We achieve 1st place in two batches at 9B BioASQ Challenge | 
-
+  description: | 
 
 - layout: top-middle
   name: Graph Transformer Networks Learning Meta-path Graphs to Improve GNNs

@@ -12,19 +12,19 @@ website: minstar.github.io
 twitter_username: Minbyul Jeong
 github_username:  minstar
 # dribbble_username: jekyll
-# facebook_username: minbyuljeong
+facebook_username: minbyuljeong
 # flickr_username: jekyll
 instagram_username: minbyuljeong
 # linkedin_username: minbyuljeong
 # pinterest_username: jekyll
-# youtube_username: globalmtb
+youtube_username: hotteogbaedalbu
 # googleplus_username: +jekyll
 
 # About Section
 # about_title: About Me
 about_profile_image: images/minstar.jpg
 about_content: | # this will include new lines to allow paragraphs
-  I am a Ph.D student in the Department of Computer Science and Engineering at Korea University (DMIS Lab) advised by Prof. Jaewoo Kang. My research interests are Natural Language Processing and Graph neural network. Currently, I am focusing on solving biomedical NLP tasks.
+  I am a Ph.D student in the Department of Computer Science and Engineering at Korea University (DMIS Lab) advised by Prof. Jaewoo Kang. My research interests are Natural Language Processing and Graph neural network. Currently, I am focusing on solving biomedical NLP tasks. I'm looking for a industrial research intership for Summer 2023/Autumn 2023/Winter 2023.
 
   I am most skilled in: <mark>python</mark> (e.g., tensorflow and pytorch)
 

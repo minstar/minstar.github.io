@@ -12,9 +12,7 @@
   link: https://github.com/dmis-lab/bioasq9b-dmis
   dates: March 2021 - May 2021
   description: | # this will include new lines to allow paragraphs
-    3rd place at BioASQ9B (Factoid Type): A challenge on large-scale biomedical semantic indexing and question answering (Phase B)
-    1st place at BioASQ9B (Yes/No Type): A challenge on large-scale biomedical semantic indexing and question answering (Phase B)
-    1st place at BioASQ9B (List Type): A challenge on large-scale biomedical semantic indexing and question answering (Phase B)
+    1st place at BioASQ9B: A challenge on large-scale biomedical semantic indexing and question answering (Phase B)
 
 - layout: left
   name: BioASQ8B
