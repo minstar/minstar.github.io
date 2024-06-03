@@ -1,1 +1,0 @@
-# minstar.github.io
