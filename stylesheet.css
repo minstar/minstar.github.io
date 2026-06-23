@@ -218,10 +218,17 @@ span.highlight {
 }
 
 .custom-col-sm-3 {
-    flex: 0 0 25%; 
-    max-width: 22%;
+    flex: 0 0 42%;
+    max-width: 42%;
     margin-right: auto;
 }
+
+@media screen and (min-width: 577px) {
+    .right-column {
+      flex: 0 0 56%;
+      max-width: 56%;
+    }
+  }
 
 @media screen and (max-width: 576px) {
     .custom-col-sm-3{
