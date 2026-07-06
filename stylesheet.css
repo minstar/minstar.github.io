@@ -223,6 +223,176 @@ span.highlight {
     margin-right: auto;
 }
 
+/* ---- Top site navigation (Home / Research Notes) ---- */
+.site-nav {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+.site-nav a {
+  color: #1772d0;
+}
+.site-nav a.active {
+  color: #333;
+  font-weight: 700;
+}
+.site-nav a:hover {
+  color: #f09228;
+}
+
+/* ---- Selected / All publication tabs ---- */
+.pub-tab {
+  font-size: 15px;
+  font-weight: 400;
+  color: #1772d0;
+  cursor: pointer;
+}
+.pub-tab:hover {
+  color: #f09228;
+}
+.pub-tab.active {
+  color: #333;
+  font-weight: 700;
+  text-decoration: underline;
+}
+.pub-tab-sep {
+  color: #ccc;
+  font-weight: 400;
+  padding: 0 4px;
+}
+
+/* ---- "All" publications: CV-style list ---- */
+.pub-year {
+  font-weight: 700;
+  font-size: 15px;
+  color: #333;
+  margin-top: 18px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 2px;
+}
+ul.pub-list {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+ul.pub-list > li {
+  margin-bottom: 12px;
+  padding-left: 18px;
+  text-indent: -18px;
+  line-height: 1.5;
+}
+ul.pub-list > li::before {
+  content: "\2022";
+  color: #bbb;
+  padding-right: 8px;
+}
+.pub-list .pub-title {
+  font-weight: 700;
+}
+.pub-list .pub-authors {
+  color: #333;
+}
+.pub-list .pub-venue {
+  font-style: italic;
+  color: #555;
+}
+.pub-list .pub-links a {
+  font-size: 13px;
+}
+.pub-list .pub-me {
+  font-weight: 700;
+}
+
+/* ---- Research notes ---- */
+.notes-toc {
+  list-style: none;
+  padding-left: 0;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+  margin-bottom: 24px;
+}
+.notes-toc li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.notes-toc .toc-date {
+  display: inline-block;
+  min-width: 96px;
+  color: #999;
+  font-variant-numeric: tabular-nums;
+}
+.note {
+  margin-bottom: 40px;
+}
+.note-header {
+  margin-bottom: 4px;
+}
+.note-date {
+  color: #999;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.note-body h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 4px;
+  margin-bottom: 10px;
+}
+.note-body h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+.note-body h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-top: 16px;
+  margin-bottom: 6px;
+}
+.note-body p,
+.note-body li {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.note-body pre {
+  background: #f6f8fa;
+  border: 1px solid #eaecef;
+  border-radius: 6px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+.note-body code {
+  background: #f2f2f2;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 13px;
+}
+.note-body pre code {
+  background: none;
+  padding: 0;
+}
+.note-body blockquote {
+  border-left: 3px solid #ddd;
+  margin-left: 0;
+  padding-left: 14px;
+  color: #666;
+}
+.note-body img {
+  max-width: 100%;
+}
+.note-body table {
+  border-collapse: collapse;
+  margin: 10px 0;
+}
+.note-body th,
+.note-body td {
+  border: 1px solid #ddd;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
 @media screen and (min-width: 577px) {
     .right-column {
       flex: 0 0 46%;

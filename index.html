@@ -31,6 +31,14 @@
 <body>
   <div class="container">
     <div class="row" style="margin-top: 10px;">
+      <div class="col-sm-12" style="text-align:center;">
+        <p class="site-nav">
+          <a href="index.html" class="active">Home</a> &nbsp;/&nbsp;
+          <a href="research-notes.html">Research Notes</a>
+        </p>
+      </div>
+    </div>
+    <div class="row">
       <div class="col-sm-4 name-column" style="min-width: 266px;">
         <p style="text-align:center">
           <name>Minbyul Jeong</name>
@@ -121,9 +129,17 @@
   <br>
   <div class="container">
     <div class="row section-heading-rows">
-      <h4>Selected Publications</h4>
+      <h4 style="margin-bottom:0;">Publications</h4>
+    </div>
+    <div class="row" style="margin-bottom:6px;">
+      <div class="col">
+        <a href="javascript:void(0)" id="tab-selected" class="pub-tab active" onclick="showPubTab('selected')">Selected</a>
+        <span class="pub-tab-sep">/</span>
+        <a href="javascript:void(0)" id="tab-all" class="pub-tab" onclick="showPubTab('all')">All</a>
+      </div>
     </div>
 
+    <div id="pub-selected">
     <div class="row common-rows" style="margin-top: 3%">
       <div class="col-xs-12 custom-col-sm-3 left-column">
         <img src="pictures/2026openbiorq.png" alt="arxiv2026openbiorq" class="paper-images" id="arxiv2026openbiorq">
@@ -479,11 +495,207 @@
         <a href="https://papers.nips.cc/paper_files/paper/2019/hash/9d63484abb477c97640154d40595a3bb-Abstract.html">paper</a> /
         <a href="https://github.com/seongjunyun/Graph_Transformer_Networks">code</a>
         <br>
-        <p style="margin-top: -1%;"> 
+        <p style="margin-top: -1%;">
             We present <b>GTN</b>, a network for graph transformations to enhance node representations.
         </p>
       </div>
     </div>
+    </div><!-- /#pub-selected -->
+
+    <div id="pub-all" style="display:none;">
+      <p style="color:#888; margin-top: 2%;">
+        Full list from
+        <a href="https://scholar.google.com/citations?user=jwx0FLoAAAAJ&hl=en">Google Scholar</a>.
+        <strong>Bold</strong> denotes my name; * equal contribution, &dagger; corresponding author.
+      </p>
+      <div class="pub-year">2026</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">Ko-WideSearch: A Korean Breadth-Search Benchmark for Exhaustive Set Enumeration by Web Agents</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span></span>.
+          <span class="pub-venue">arXiv preprint, 2026</span>.
+          <span class="pub-links">[<a href="https://minstar.github.io/Ko-widesearch/">project</a>] [<a href="https://github.com/minstar/Ko-widesearch">code</a>] [<a href="https://huggingface.co/datasets/Minbyul/Ko-widesearch">dataset</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">OpenBioRQ: Unsolved Biomedical Research Questions for Agents</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span></span>.
+          <span class="pub-venue">arXiv preprint, 2026</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2606.21959">arXiv</a>] [<a href="https://github.com/minstar/healthcare-research">code</a>] [<a href="https://minstar.github.io/OpenBioRQ/">project</a>] [<a href="https://huggingface.co/datasets/Minbyul/OpenBioRQ">dataset</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Healthcare AI GYM for Medical Agents</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span></span>.
+          <span class="pub-venue">arXiv preprint, 2026</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2605.02943">arXiv</a>] [<a href="https://github.com/minstar/Healthcare_GYM">code</a>] [<a href="https://minstar.github.io/healthcare-ai-gym/">project</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Solar Open Technical Report</span>.
+          <span class="pub-authors">Solar AI Tech Team</span>.
+          <span class="pub-venue">arXiv preprint, 2026</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2601.07022">arXiv</a>] [<a href="https://huggingface.co/upstage/Solar-Open-100B">model</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">User-Oriented Multi-Turn Dialogue Generation with Tool Use at Scale</span>.
+          <span class="pub-authors">Jungho Cho, <span class="pub-me">Minbyul Jeong</span>, Sungrae Park</span>.
+          <span class="pub-venue">arXiv preprint, 2026</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2601.08225">arXiv</a>]</span>
+        </li>
+      </ul>
+
+      <div class="pub-year">2025</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">Does Time Have Its Place? Temporal Heads: Where Language Models Recall Time-specific Information</span>.
+          <span class="pub-authors">Yein Park, Chanwoong Yoon, Jungwoo Park, <span class="pub-me">Minbyul Jeong</span>&dagger;, Jaewoo Kang&dagger;</span>.
+          <span class="pub-venue">ACL 2025</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2502.14258">arXiv</a>] [<a href="https://github.com/dmis-lab/TemporalHead">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">ChroKnowledge: Unveiling Chronological Knowledge of Language Models in Multiple Domains</span>.
+          <span class="pub-authors">Yein Park, Chanwoong Yoon, Jungwoo Park, Donghyeon Lee, <span class="pub-me">Minbyul Jeong</span>&dagger;, Jaewoo Kang&dagger;</span>.
+          <span class="pub-venue">ICLR 2025</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2410.09870">arXiv</a>] [<a href="https://openreview.net/forum?id=whaO3482bs">OpenReview</a>] [<a href="https://github.com/dmis-lab/ChroKnowledge">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Thinking Sparks!: Emergent Attention Heads in Reasoning Models During Post Training</span>.
+          <span class="pub-authors">Yein Park, <span class="pub-me">Minbyul Jeong</span>&dagger;, Jaewoo Kang&dagger;</span>.
+          <span class="pub-venue">arXiv preprint, 2025</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2509.25758">arXiv</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Trustworthy Agents for Electronic Health Records through Confidence Estimation</span>.
+          <span class="pub-authors">Yongwoo Song, <span class="pub-me">Minbyul Jeong</span>&dagger;, Mujeen Sung&dagger;</span>.
+          <span class="pub-venue">arXiv preprint, 2025</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2508.19096">arXiv</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">System Message Generation for User Preferences using Open-Source Models</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span>&dagger;, Jungho Cho, Minsoo Khang, Dawoon Jung, Teakgyu Hong</span>.
+          <span class="pub-venue">arXiv preprint, 2025</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2502.11330">arXiv</a>]</span>
+        </li>
+      </ul>
+
+      <div class="pub-year">2024</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">CompAct: Compressing Retrieved Documents Actively for Question Answering</span>.
+          <span class="pub-authors">Chanwoong Yoon, Taewhoo Lee, Hyeon Hwang, <span class="pub-me">Minbyul Jeong</span>&dagger;, Jaewoo Kang&dagger;</span>.
+          <span class="pub-venue">EMNLP 2024</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2407.09014">arXiv</a>] [<a href="https://github.com/dmis-lab/CompAct">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Improving Medical Reasoning through Retrieval and Self-Reflection with Retrieval-Augmented Large Language Models</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span>, Jiwoong Sohn, Mujeen Sung, Jaewoo Kang</span>.
+          <span class="pub-venue">ISMB 2024 (Bioinformatics)</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2401.15269">arXiv</a>] [<a href="https://github.com/dmis-lab/self-biorag">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">OLAPH: Improving Factuality in Biomedical Long-form Question Answering</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span>, Hyeon Hwang, Chanwoong Yoon, Taewhoo Lee, Jaewoo Kang</span>.
+          <span class="pub-venue">arXiv preprint, 2024</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2405.12701">arXiv</a>] [<a href="https://github.com/dmis-lab/OLAPH">code</a>] [<a href="https://www.youtube.com/watch?v=7wZpIWCEAaY">video</a>]</span>
+        </li>
+      </ul>
+
+      <div class="pub-year">2023</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">Consistency Enhancement of Model Prediction on Document-level Named Entity Recognition</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span>, Jaewoo Kang</span>.
+          <span class="pub-venue">Bioinformatics 2023</span>.
+          <span class="pub-links">[<a href="https://academic.oup.com/bioinformatics/article/39/6/btad361/7188100">paper</a>] [<a href="https://github.com/dmis-lab/ConNER">code</a>]</span>
+        </li>
+      </ul>
+
+      <div class="pub-year">2022</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">BERN2: An Advanced Neural Biomedical Named Entity Recognition and Normalization Tool</span>.
+          <span class="pub-authors">Mujeen Sung*, <span class="pub-me">Minbyul Jeong</span>*, Yonghwa Choi, Donghyeon Kim, Jinhyuk Lee, Jaewoo Kang</span>.
+          <span class="pub-venue">Bioinformatics 2022</span>.
+          <span class="pub-links">[<a href="https://academic.oup.com/bioinformatics/article/38/20/4837/6687126">paper</a>] [<a href="http://bern2.korea.ac.kr/">demo</a>] [<a href="https://github.com/dmis-lab/BERN2">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Graph Transformer Networks: Learning Meta-path Graphs to Improve GNNs</span>.
+          <span class="pub-authors">Seongjun Yun, <span class="pub-me">Minbyul Jeong</span>, Sungdong Yoo, Seunghun Lee, Sean S. Yi, Raehyun Kim, Jaewoo Kang, Hyunwoo J. Kim</span>.
+          <span class="pub-venue">Neural Networks 2022</span>.
+          <span class="pub-links">[<a href="https://www.sciencedirect.com/science/article/pii/S0893608022002003">paper</a>] [<a href="https://github.com/seongjunyun/Graph_Transformer_Networks">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Data-Centric and Model-Centric Approaches for Biomedical Question Answering</span>.
+          <span class="pub-authors">Wonjin Yoon, Jaehyo Yoo, Sumin Seo, Mujeen Sung, <span class="pub-me">Minbyul Jeong</span>, Gangwoo Kim, Jaewoo Kang</span>.
+          <span class="pub-venue">CLEF 2022</span>.
+          <span class="pub-links">[<a href="https://dl.acm.org/doi/abs/10.1007/978-3-031-13643-6_16">paper</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Pandemics are Catalysts of Scientific Novelty: Evidence from COVID-19</span>.
+          <span class="pub-authors">Meijun Liu, Yi Bu, Chongyan Chen, &hellip;, <span class="pub-me">Minbyul Jeong</span>, &hellip;, Ying Ding</span>.
+          <span class="pub-venue">JASIST 2022</span>.
+          <span class="pub-links">[<a href="https://doi.org/10.1002/asi.24612">paper</a>] [<a href="https://arxiv.org/abs/2009.12500">arXiv</a>]</span>
+        </li>
+      </ul>
+
+      <div class="pub-year">2021</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">Regularization for Long Named Entity Recognition</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span>, Jaewoo Kang</span>.
+          <span class="pub-venue">arXiv preprint, 2021</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2104.07249">arXiv</a>]</span>
+        </li>
+      </ul>
+
+      <div class="pub-year">2020</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">Transferability of Natural Language Inference to Biomedical Question Answering</span>.
+          <span class="pub-authors"><span class="pub-me">Minbyul Jeong</span>, Mujeen Sung, Gangwoo Kim, Donghyeon Kim, Wonjin Yoon, Jaehyo Yoo, Jaewoo Kang</span>.
+          <span class="pub-venue">CLEF 2020</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2007.00217">arXiv</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Answering Questions on COVID-19 in Real-Time</span>.
+          <span class="pub-authors">Jinhyuk Lee, Sean S. Yi, <span class="pub-me">Minbyul Jeong</span>, Mujeen Sung, Wonjin Yoon, Yonghwa Choi, Miyoung Ko, Jaewoo Kang</span>.
+          <span class="pub-venue">NLP-COVID Workshop @ EMNLP 2020</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/2006.15830">arXiv</a>] [<a href="https://github.com/dmis-lab/covidAsk">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Building a PubMed Knowledge Graph</span>.
+          <span class="pub-authors">Jian Xu, Sunkyu Kim, Min Song, <span class="pub-me">Minbyul Jeong</span>, &hellip;, Ying Ding</span>.
+          <span class="pub-venue">Scientific Data 2020</span>.
+          <span class="pub-links">[<a href="https://www.nature.com/articles/s41597-020-0543-2">paper</a>]</span>
+        </li>
+      </ul>
+
+      <div class="pub-year">2019</div>
+      <ul class="pub-list">
+        <li>
+          <span class="pub-title">Graph Transformer Networks</span>.
+          <span class="pub-authors">Seongjun Yun, <span class="pub-me">Minbyul Jeong</span>, Raehyun Kim, Jaewoo Kang, Hyunwoo J. Kim</span>.
+          <span class="pub-venue">NeurIPS 2019</span>.
+          <span class="pub-links">[<a href="https://papers.nips.cc/paper_files/paper/2019/hash/9d63484abb477c97640154d40595a3bb-Abstract.html">paper</a>] [<a href="https://github.com/seongjunyun/Graph_Transformer_Networks">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">Pre-trained Language Model for Biomedical Question Answering</span>.
+          <span class="pub-authors">Wonjin Yoon, Jinhyuk Lee, Donghyeon Kim, <span class="pub-me">Minbyul Jeong</span>, Jaewoo Kang</span>.
+          <span class="pub-venue">ECML PKDD 2019</span>.
+          <span class="pub-links">[<a href="https://link.springer.com/chapter/10.1007/978-3-030-43887-6_64">paper</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">BERN: A Neural Named Entity Recognition and Multi-type Normalization Tool for Biomedical Text Mining</span>.
+          <span class="pub-authors">Donghyeon Kim, Jinhyuk Lee, Chan Ho So, Hwisang Jeon, <span class="pub-me">Minbyul Jeong</span>, Yonghwa Choi, Wonjin Yoon, Mujeen Sung, Jaewoo Kang</span>.
+          <span class="pub-venue">IEEE Access 2019</span>.
+          <span class="pub-links">[<a href="https://ieeexplore.ieee.org/abstract/document/8730332/">paper</a>] [<a href="https://github.com/dmis-lab/BERN">code</a>]</span>
+        </li>
+        <li>
+          <span class="pub-title">HATS: A Hierarchical Graph Attention Network for Stock Movement Prediction</span>.
+          <span class="pub-authors">Raehyun Kim, Chan Ho So, <span class="pub-me">Minbyul Jeong</span>, Sanghoon Lee, Jinkyu Kim, Jaewoo Kang</span>.
+          <span class="pub-venue">arXiv preprint, 2019</span>.
+          <span class="pub-links">[<a href="https://arxiv.org/abs/1908.07999">arXiv</a>]</span>
+        </li>
+      </ul>
+    </div><!-- /#pub-all -->
   </div>
 
   <br>
@@ -578,6 +790,26 @@
       </div>
     </div>
   </div>
+
+  <script>
+    function showPubTab(which) {
+      var selected = document.getElementById('pub-selected');
+      var all = document.getElementById('pub-all');
+      var tabSelected = document.getElementById('tab-selected');
+      var tabAll = document.getElementById('tab-all');
+      if (which === 'all') {
+        selected.style.display = 'none';
+        all.style.display = 'block';
+        tabAll.classList.add('active');
+        tabSelected.classList.remove('active');
+      } else {
+        selected.style.display = 'block';
+        all.style.display = 'none';
+        tabSelected.classList.add('active');
+        tabAll.classList.remove('active');
+      }
+    }
+  </script>
 </body>
 
 </html>
