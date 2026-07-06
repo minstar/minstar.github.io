@@ -304,33 +304,50 @@ ul.pub-list > li::before {
 }
 
 /* ---- Research notes ---- */
-.notes-toc {
-  list-style: none;
-  padding-left: 0;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-  margin-bottom: 24px;
-}
-.notes-toc li {
-  margin-bottom: 6px;
-  line-height: 1.5;
-}
-.notes-toc .toc-date {
-  display: inline-block;
-  min-width: 96px;
-  color: #999;
-  font-variant-numeric: tabular-nums;
-}
-.note {
-  margin-bottom: 40px;
-}
-.note-header {
-  margin-bottom: 4px;
-}
 .note-date {
   color: #999;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+
+/* Each note is a collapsible entry; its summary doubles as the index row. */
+.note-entry {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+.note-summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  user-select: none;
+}
+.note-summary::-webkit-details-marker { display: none; }
+.note-summary::before {
+  content: "\25B8";            /* right-pointing triangle when closed */
+  color: #bbb;
+  font-size: 12px;
+}
+.note-entry[open] > .note-summary::before {
+  content: "\25BE";            /* down-pointing triangle when open */
+}
+.note-summary .note-date {
+  min-width: 84px;
+  flex: none;
+}
+.note-summary .note-title {
+  font-weight: 700;
+  font-size: 16px;
+  color: #333;
+}
+.note-summary:hover .note-title {
+  color: #1772d0;
+}
+.note-entry > .note-body {
+  margin-top: 8px;
 }
 .note-body h1 {
   font-size: 22px;

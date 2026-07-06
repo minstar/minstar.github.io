@@ -44,14 +44,7 @@
   </div>
 
   <div class="container">
-    <!-- Table of contents (auto-generated) -->
-    <div class="row section-heading-rows">
-      <div class="col">
-        <ul id="notes-toc" class="notes-toc"></ul>
-      </div>
-    </div>
-
-    <!-- Rendered notes (auto-generated) -->
+    <!-- Collapsible note entries (auto-generated). Each note's summary is its index row. -->
     <div class="row">
       <div class="col">
         <div id="notes-container"></div>
@@ -85,9 +78,24 @@
       return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    function slugify(s) {
+      return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    }
+
+    // Drop a leading top-level "# Title" so it doesn't duplicate the summary title.
+    function stripLeadingH1(md) {
+      const lines = md.split("\n");
+      let i = 0;
+      while (i < lines.length && lines[i].trim() === "") i++;
+      if (i < lines.length && /^#\s+/.test(lines[i])) {
+        lines.splice(0, i + 1);
+        return lines.join("\n");
+      }
+      return md;
+    }
+
     async function renderNotes() {
       const sorted = [...NOTES].sort((a, b) => b.date.localeCompare(a.date));
-      const toc = document.getElementById("notes-toc");
       const container = document.getElementById("notes-container");
 
       if (sorted.length === 0) {
@@ -95,24 +103,20 @@
         return;
       }
 
-      for (const note of sorted) {
-        const anchor = "note-" + note.date;
+      for (let i = 0; i < sorted.length; i++) {
+        const note = sorted[i];
 
-        // Table-of-contents entry
-        const li = document.createElement("li");
-        li.innerHTML = '<span class="toc-date">' + escapeHtml(note.date) + '</span>' +
-                       '<a href="#' + anchor + '">' + escapeHtml(note.title) + '</a>';
-        toc.appendChild(li);
+        // Each note is its own collapsible entry; the summary is the index row.
+        const details = document.createElement("details");
+        details.className = "note-entry";
+        details.id = note.date + "-" + slugify(note.title);
+        if (i === 0) details.open = true;   // newest expanded by default
 
-        // Note body
-        const article = document.createElement("article");
-        article.className = "note";
-        article.id = anchor;
-
-        const header = document.createElement("div");
-        header.className = "note-header";
-        header.innerHTML = '<span class="note-date">' + escapeHtml(note.date) + '</span>';
-        article.appendChild(header);
+        const summary = document.createElement("summary");
+        summary.className = "note-summary";
+        summary.innerHTML = '<span class="note-date">' + escapeHtml(note.date) + '</span>' +
+                            '<span class="note-title">' + escapeHtml(note.title) + '</span>';
+        details.appendChild(summary);
 
         const body = document.createElement("div");
         body.className = "note-body";
@@ -120,14 +124,14 @@
           const res = await fetch(note.file, { cache: "no-store" });
           if (!res.ok) throw new Error("HTTP " + res.status);
           const md = await res.text();
-          body.innerHTML = marked.parse(md);
+          body.innerHTML = marked.parse(stripLeadingH1(md));
         } catch (e) {
           body.innerHTML = "<p style='color:#c0392b;'>Could not load <code>" +
                            escapeHtml(note.file) + "</code> (" + escapeHtml(String(e.message)) +
                            "). On GitHub Pages this loads fine; opening the file locally via file:// blocks fetch.</p>";
         }
-        article.appendChild(body);
-        container.appendChild(article);
+        details.appendChild(body);
+        container.appendChild(details);
       }
     }
 
