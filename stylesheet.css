@@ -382,6 +382,34 @@ ul.pub-list > li::before {
 .note-body img {
   max-width: 100%;
 }
+.note-body details {
+  margin: 16px 0;
+  border: 1px solid #eaecef;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+.note-body summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #1772d0;
+  user-select: none;
+}
+.note-body summary:hover {
+  color: #f09228;
+}
+.note-body details[open] summary {
+  border-bottom: 1px solid #eaecef;
+  margin-bottom: 8px;
+}
+.note-body details > *:not(summary) {
+  margin-left: 14px;
+  margin-right: 14px;
+}
+.note-body details > p:last-child {
+  padding-bottom: 6px;
+}
 .note-body table {
   border-collapse: collapse;
   margin: 10px 0;
