@@ -44,6 +44,12 @@
   </div>
 
   <div class="container">
+    <!-- Pinned index of tech reports / system cards, always at the top. -->
+    <div class="row">
+      <div class="col">
+        <div id="insights-container"></div>
+      </div>
+    </div>
     <!-- Collapsible note entries (auto-generated). Each note's summary is its index row. -->
     <div class="row">
       <div class="col">
@@ -98,6 +104,38 @@
       return md;
     }
 
+    // Pinned "Insights of Tech Report" section — always the first entry, open by default.
+    async function renderInsights() {
+      const container = document.getElementById("insights-container");
+      const file = "notes/insights-tech-reports.md";
+
+      const details = document.createElement("details");
+      details.className = "note-entry";
+      details.id = "insights-of-tech-report";
+      details.open = true;
+
+      const summary = document.createElement("summary");
+      summary.className = "note-summary";
+      summary.innerHTML = '<span class="note-date">reports</span>' +
+                          '<span class="note-title">Insights of Tech Report</span>';
+      details.appendChild(summary);
+
+      const body = document.createElement("div");
+      body.className = "note-body";
+      try {
+        const res = await fetch(file, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const md = await res.text();
+        body.innerHTML = marked.parse(stripLeadingH1(md));
+      } catch (e) {
+        body.innerHTML = "<p style='color:#c0392b;'>Could not load <code>" +
+                         escapeHtml(file) + "</code> (" + escapeHtml(String(e.message)) +
+                         "). On GitHub Pages this loads fine; opening the file locally via file:// blocks fetch.</p>";
+      }
+      details.appendChild(body);
+      container.appendChild(details);
+    }
+
     async function renderNotes() {
       const sorted = [...NOTES].sort((a, b) => b.date.localeCompare(a.date));
       const container = document.getElementById("notes-container");
@@ -139,6 +177,7 @@
       }
     }
 
+    renderInsights();
     renderNotes();
   </script>
 </body>
