@@ -69,6 +69,49 @@ measure against.*
 </details>
 
 <details>
+<summary><strong>GPT-5.5 System Card</strong> · OpenAI, April 2026</summary>
+
+*OpenAI's system card for GPT-5.5, a reasoning model aimed at long-horizon real-world
+work (coding, research, cross-tool agentic action), covering Preparedness-Framework
+capability evals with heavy focus on computer-use confirmation protocols,
+agent-vs-user-work separation, and coding-agent misalignment monitoring.*
+
+**From the report**
+> To resample internal coding-agent trajectories they built a tool-response simulator with access to codebase state; realism was checked against a GPT-5.4-Thinking judge tasked with picking the real trajectory, which won only 52.5% of the time. — §7.2
+> The 0–4 severity misalignment monitor has 97.6% recall on 21 human-labeled sev-3 transcripts, but under full category ablation recall collapses to 49.6%, and 95% of current sev-3 traffic would be labeled ≥ sev-2 while fewer than half would be labeled sev-3. — §7.2.1
+> Destructive-action avoidance rises to 0.90 (vs 0.86 for GPT-5.4-Thinking); on long rollouts "Perfect reversion" jumps to 0.52 (vs 0.18) — agents were trained to revert their own changes while protecting simulated user work. — §3.3
+> Cyber is treated High-but-not-Critical: CTF-Professional pass@12 96.3% (saturating), cyber-range combined 93.33% (vs 73.33%) attributed to "persistence at exploitation," but no verifier-confirmed full-chain Critical exploit. — §9.1.2
+
+**My read**
+- *What I'd look at:* §7.2's tool-response simulator + the 52.5% discriminator — essentially a learned world-model + fidelity verifier, reusable for validating synthesized environments; and §7.2.1's monitor-recall collapse (97.6→49.6 under ablation) as a quantified anti-Goodhart caution about how much an LLM-judge-as-reward misses out-of-taxonomy behavior.
+- *Where it meets my notes:* **AgentPlanet** — the tool-response simulator is a learned world-model surrogate with a 52.5% fidelity discriminator, and §9.1.2 puts deterministic-oracle rewards (hidden tests, medal thresholds, exploit success) next to an LLM judge — the same oracle-vs-judge factorization. **Over-reflection** — GPT-5.5's flagged failures are *over-action* ("overeager action when only asked questions," "persistence at exploitation"), and the 86.4%-coverage situation×action subcategorization mirrors my per-type repair.
+
+[Source (PDF)](https://deploymentsafety.openai.com/gpt-5-5/gpt-5-5.pdf)
+
+</details>
+
+<details>
+<summary><strong>Gemini 3.1 Pro — Model Card</strong> · Google DeepMind, February 2026</summary>
+
+*A model card for Gemini 3.1 Pro (evaluated in "Thinking (High)"), reporting headline
+benchmark scores across agentic tool-use, coding, search, and long context — and
+deferring all architecture/training details to the Gemini 3 Pro card.*
+
+**From the report**
+> Agentic coding: Terminal-Bench 2.0 68.5%, SWE-Bench Verified 80.6%, SWE-Bench Pro (Public) 54.2%. — benchmarks table
+> Tool use: tau2-bench Telecom 99.3% / Retail 90.8%, MCP Atlas 69.2%, APEX-Agents 33.5%. — benchmarks table
+> Search: BrowseComp 85.9% (Search + Python + Browse); Humanity's Last Exam 44.4% (no tools) vs 51.4% (Search (blocklist) + Code). — benchmarks table
+> Long context: up to 1M tokens / 64K output, but MRCR v2 drops from 84.9% at 128k to 26.3% at 1M. — specs + table
+
+**My read**
+- *What I'd look at:* the agentic cluster — tau2-bench Telecom 99.3% near-ceiling vs APEX-Agents collapsing to 33.5% is the spread between saturated and unsaturated agentic verifiers — and MRCR v2's 84.9→26.3 collapse as the load-bearing "1M context" caveat. It's a thin iteration card: no RL/reasoning-training method or knowledge cutoff is stated, so don't cite it for training claims.
+- *Where it meets my notes:* **AgentPlanet** — tau2-bench Telecom essentially saturated at 99.3% is a deterministic-verifier benchmark hitting its ceiling, an anti-Goodhart data point that motivates harder auto-curriculum and verifier batteries. **Over-reflection** — BrowseComp 85.9% and Terminal-Bench 2.0 68.5% are an external single-model reference on the browsing/long-horizon surface my analysis runs on.
+
+[Source (model card)](https://deepmind.google/models/model-cards/gemini-3-1-pro/)
+
+</details>
+
+<details>
 <summary><strong>DeepSeek-V4: Towards Highly Efficient Million-Token Context Intelligence</strong> · DeepSeek-AI, April 2026</summary>
 
 *Technical report for the DeepSeek-V4 preview series — V4-Pro (1.6T total / 49B
@@ -85,6 +128,29 @@ tokens.*
 - *Where it meets my notes:* **Post-cutoff distillation** — a same-tokenizer, non-gated on-policy-distillation baseline to differentiate my cross-tokenizer, post-cutoff-gated scheme against. **Energy floor / Wearable world model** — the KV-compression + FP4 recipe and the explicit power-throttling remark are the exact levers those two notes turn, here at datacenter scale.
 
 [Source (arXiv 2606.19348)](https://arxiv.org/abs/2606.19348)
+
+</details>
+
+<details>
+<summary><strong>Nemotron 3 Nano: Open, Efficient MoE Hybrid Mamba-Transformer for Agentic Reasoning</strong> · NVIDIA, December 2025</summary>
+
+*Technical report for Nemotron 3 Nano 30B-A3B, an open MoE hybrid Mamba-Transformer
+(31.6B total / 3.2B active) post-trained with SFT + large-scale multi-environment
+RL-from-verifiable-rewards via the open-sourced NeMo Gym / NeMo RL stack, a
+GenRM-based RLHF stage, and FP8 quantization.*
+
+**From the report**
+> "We employ a unified RLVR stage, training on all environments simultaneously… single environment training often results in un-recoverable degradation of other benchmarks." — §3.2
+> NeMo Gym factors an RL environment into three server types — agents (rollout kernel), models (inference wrapper preserving tokens/log-probs), and resources ("provides a verification API for computing rewards from a given rollout"). — §3.2.4
+> Auto-curriculum: drop tasks the SFT checkpoint already passes 100%, model each domain's target pass-rate as a Gaussian sliding easy→hard, and re-profile with the best checkpoint at plateau. — §3.2.2
+> GenRMs "generalize better than traditional Bradley-Terry models, reducing the risk of reward hacking"; Group Relative Length Control cuts verbosity "30%… without sacrificing accuracy." — §3.3
+> FP8 post-training quantization with selective BF16: the 6-of-52 attention layers and their preceding Mamba layers stay BF16, giving "~99% median accuracy recovery compared to the BF16 model." — §4.2–4.3
+
+**My read**
+- *What I'd look at:* §3.2.4 NeMo Gym (agents / models / resources, where the resource server is a verification API that computes reward) — a productized version of what env-synth/dive-synth build; and §3.2.2's Gaussian sliding-pass-rate auto-curriculum, directly transplantable to a self-evolving loop.
+- *Where it meets my notes:* **AgentPlanet** — the env-factored-into-servers-with-a-verifier design plus "train on all envs at once + re-profile at plateau" are exactly the verifier-battery + self-evolving-curriculum patterns. **Over-reflection** — Group Relative Length Control penalizes group-relative reasoning length while gating a conciseness bonus, separating length inflation from reward hacking — the same over-thinking pathology as my stop/pivot reward. **Energy floor** — §4's per-layer FP8 sensitivity + FP8 KV-cache-for-throughput is concrete quantization + KV-compression evidence (a language model, so the world-model tie is a stretch).
+
+[Source (PDF)](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf)
 
 </details>
 
@@ -109,6 +175,28 @@ environments; claims parity with frontier closed models.*
 </details>
 
 <details>
+<summary><strong>Kimi K2.5: Visual Agentic Intelligence</strong> · Moonshot AI (Kimi Team), February 2026</summary>
+
+*An open multimodal agentic model trained with joint text-vision pre-training, text-only
+"zero-vision" SFT, and text+vision RL. Its headline is "Agent Swarm," which trains an
+orchestrator to decompose a task into heterogeneous sub-problems run concurrently by
+frozen subagents.*
+
+**From the report**
+> Agent Swarm vs single-agent (Table 6): BrowseComp 60.6% → 78.4% (+17.8pp); WideSearch Item-F1 72.7% → 79.0% (past Claude Opus 4.5's reported 76.2%); in-house Swarm Bench 41.6% → 58.3%.
+> PARL reward = λ1·r_parallel (vs serial collapse) + λ2·r_finish (vs spurious parallelism) + r_perf; λ1, λ2 are annealed to zero, with a decoupled trainable-orchestrator + frozen-subagents design "to prevent credit-assignment ambiguity and training instability." — §3
+> Visual RL improves text benchmarks "without observable degradation of language capabilities": MMLU-Pro 84.7→86.4, GPQA-Diamond 84.3→86.4, LongBench v2 56.7→58.9. — Table 2
+> Agent Swarm cuts latency "up to 4.5×" vs single-agent, with a CriticalSteps metric constraining parallelization to avoid wasteful subagent spawning. — §5.2
+
+**My read**
+- *What I'd look at:* §3's PARL reward — r_finish penalizes "spurious parallelism" and r_parallel prevents "serial collapse," both auxiliary weights annealed to zero — a concrete anti-degeneracy reward-shaping recipe I could mirror in a state-conditioned stop/pivot reward; and whether the +17.8pp BrowseComp gain is genuine orchestration or search-recall recovery via fan-out.
+- *Where it meets my notes:* **AgentPlanet** — the decoupled trainable-orchestrator vs frozen-subagents split (which role gets gradient) plus the three-term anti-Goodhart reward is role-factorization + reward-integrity design. **Over-reflection** — r_finish against spurious parallelism and CriticalSteps against wasteful spawning are the stop/pivot control I want, measured on my exact BrowseComp/WideSearch suite.
+
+[Source (arXiv 2602.02276)](https://arxiv.org/abs/2602.02276)
+
+</details>
+
+<details>
 <summary><strong>Qwen3 Technical Report</strong> · Qwen Team (Alibaba), May 2025</summary>
 
 *The Qwen3 open-weight family (dense 0.6–32B + MoE 30B-A3B and 235B-A22B, Apache 2.0),
@@ -125,6 +213,28 @@ user-controllable thinking budget.*
 - *Where it meets my notes:* **AgentPlanet** — the verifier pairs are a clean deterministic reward channel. **Over-reflection** — the thinking budget is a fixed token cap, a contrasting baseline to a *state-conditioned learned* stop/pivot. **Post-cutoff distillation** — strong-to-weak logit distillation is the cheap same-family baseline to beat.
 
 [Source (arXiv 2505.09388)](https://arxiv.org/abs/2505.09388)
+
+</details>
+
+<details>
+<summary><strong>Olmo 3</strong> · Allen Institute for AI (Ai2), December 2025</summary>
+
+*A fully-open 7B/32B family released with the entire "model flow" — every training
+stage, checkpoint, dataset, and code dependency from base through Think/Instruct/RL-Zero —
+plus new data (Dolma 3, Dolci), an RLVR framework (OlmoRL), and an RL-from-base setup
+(RL-Zero) built to study how pretraining data affects RL without contamination.*
+
+**From the report**
+> Rewards are domain-specific: math a rule-based SymPy verifier, code a test-case verifier on AWS Lambda, instruction-following a binary constraint-checker, and general chat an LM-judge (Qwen3 32B, thinking off) scoring [0,1] — mixing verifiable and non-verifiable rewards over ~100K prompts across 4 domains. — §4.4.1
+> RL-Zero negative control: training the base model with random/spurious rewards yields no benchmark gains, confirming eval decontamination; a domain mix gives lower train reward yet equal/better downstream, preventing over-optimization / reward-hacking. — §6.2 / §4.5
+> OlmoRL layers DAPO/Dr-GRPO advances (zero-gradient filtering, active sampling, token-level loss, no-KL, clip-higher, truncated importance sampling, no-std-dev normalization) for a 4× RL-training speedup; infra ablation 6.34→21.23 Mtok, MFU 0.30%→1.01%. — §4.4.1 / Table 23
+> Olmo 3.1 Think 32B is reported as the strongest fully-open thinking model to date, competitive with Qwen 3 32B while trained on ~6× fewer tokens (MATH 96.2, AIME 2025 78.1). — Table 1
+
+**My read**
+- *What I'd look at:* §4.4.1 + Fig 16 — the per-domain split of deterministic oracles (SymPy / test-cases / constraint-checks) vs an LM-judge for open-ended chat is exactly the oracle-vs-judge reward-channel design I care about, with a recipe for which domain gets which; and the §6.2 spurious-reward negative control as a runnable anti-Goodhart probe.
+- *Where it meets my notes:* **AgentPlanet** — the deterministic-verifier-vs-LM-judge split, the random-reward negative control that verifies decontamination, and the "domain mix curbs reward-hacking" finding are a concrete verifier/invariant battery as meta-reward. **Over-reflection** — OlmoRL response-length dynamics, dropped length-control verifiers, explicit 32K/16K/8K caps, and §3.3 eval-noise handling touch my sequence-cap and eval-noise confounds.
+
+[Source (arXiv 2512.13961)](https://arxiv.org/abs/2512.13961)
 
 </details>
 
