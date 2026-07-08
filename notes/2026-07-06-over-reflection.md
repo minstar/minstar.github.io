@@ -1,7 +1,7 @@
 # Over-reflection: when the agent already knows the answer
 
-Here is a trajectory that has been bothering me. A deepseek-v4-pro rollout in our
-teacher corpus states the answer around round 2, confirms it against a real search
+Here is a trajectory that has been bothering me. A rollout from a strong frontier
+teacher in our teacher corpus states the answer around round 2, confirms it against a real search
 hit by round 5 — and then keeps searching for twenty-one more rounds before it
 finally writes that same answer down. The extra rounds change nothing. The model
 already knew, and already had the evidence, and searched anyway.
