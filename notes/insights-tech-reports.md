@@ -211,6 +211,160 @@ interpretability assessment.*
 </details>
 
 <details>
+<summary><strong>MetaResearcher: Scaling Deep Research via Self-Reflective Reinforcement Learning in Adversarial Virtual Environments</strong> · Jiangxi Arts &amp; Ceramics Technology Institute / Universiti Sains Malaysia, June 2026</summary>
+
+*A framework-**proposal** paper — explicitly "planned experimental validation," not a results
+paper — that extends the LiteResearcher deep-research stack (a 4B agent trained inside a local
+~32M-webpage search-and-browse world at zero marginal API cost) along four axes: an "evolving
+virtual world" that injects temporal dynamics and adversarial misinformation, discovery-oriented
+tasks beyond fact retrieval, a self-reflective meta-reward under GRPO, and a Scout/Filter/Synthesizer
+multi-agent swarm. It reports no measured outcomes of its own — only LiteResearcher baselines
+(GAIA 71.3%, Xbench-DS 78.0%) and a table of testable hypotheses (e.g. GAIA ≥73.0%).*
+
+**From the report**
+
+> Evolving Virtual World (core method): documents exist as versioned instances across time — e.g. preprint→retraction→replication — indexed with temporal metadata so search results filter by a simulated timestamp; on top of that it injects "high-plausibility" adversarial misinformation mimicking "prestigious journal formats, well-known author names," to force source-credibility discrimination and temporal conflict resolution. — §3.1
+>
+> Self-reflective meta-reward (Eq.1): R_meta = w_c·R_correctness + w_e·R_efficiency + w_r·R_reflection + w_d·R_diversity, with Σ w_i = 1 (weights left as unspecified hyperparameters); correctness is a binary LLM-judge reward (a Chinese-language prompt for Xbench-DS). — §3.3.1
+>
+> Reflection-depth reward (Eq.3): R_reflection = β₁·I[backtrack] + β₂·I[strategy_change] + β₃·(N_distinct_sources / N_total_visits), where I[backtrack] fires on an explicit admission inside `<think>` tags that a prior direction was unproductive, and I[strategy_change] detects e.g. a keyword→author search switch. — §3.3.1
+>
+> Tool-call diversity reward (Eq.4): R_diversity = γ·(|unique_queries|/|total_calls|) + (1−γ)·(|unique_domains|/|total_visits|), both terms normalized "to prevent trivial maximization through extended search" — built to penalize the repetitive-action loop. — §3.3.1
+>
+> Heterogeneous swarm: three jointly-trained 4B agents — Scout (query construction, reward = Precision@k), Filter (relevance ranking, reward = Selection F1), Synthesizer (integration, and decides when enough info is gathered, reward = Correctness) — under a shared team reward, joint loss L_total = Σ L_GRPO(π) + λ·L_team. — §3.4.1 / §3.4.3 (Eq.6)
+>
+> Table 1 positions it against prior work by construction, not by result: on GAIA the baselines are LiteResearcher 71.3 / Search-R1++ 63.1 / DeepRubric 69.8 / CaRR 65.2, while MetaResearcher's own cell is "—" (unmeasured); it is the lone row combining an Evolving env, a multi-agent architecture, and $0/step cost. — §Table 1
+>
+> Infra/recipe: base Qwen2.5-4B-Instruct on LiteResearcher (Milvus + BGE-M3 retrieval, PostgreSQL page store), a 4-stage Easy→Expert curriculum, G=8 GRPO rollouts, ~2000 GPU-hours on 8×A100-80GB; "over 73 million tool calls at zero marginal API cost" because the world is local. — §1 / §4.3
+>
+> Caveat the paper states: adversarial-content calibration is a knife-edge — poorly-calibrated misinformation is either "trivially identifiable (providing no training signal) or unfairly deceptive (teaching agents to be overly skeptical of legitimate information)," mitigated only by "multi-stage human review"; and hypothesis generation "lacks clear correct/incorrect boundaries," so its LLM-judge eval "may not fully capture" the quality. — §5.2
+
+**My read**
+- *What I'd look at:* §3.3.1 — the meta-reward is almost exactly the reward vector I've been sketching for over-reflection: R_efficiency penalizes excess tool calls, R_diversity = unique_queries/total_calls directly targets the repetitive-query loop, and R_reflection pays for an explicit `<think>`-tag backtrack. The detectors are cheap and parseable — but hand-crafted, gameable, and the paper offers *zero* evidence they survive RL (Fig 5 is labelled "projected training dynamics," the Table 5 rows H1–H5 are hypotheses, its own GAIA cell is "—"). Read it as a design to mine, not an evidence source.
+- *Where it meets my notes:* **AgentPlanet** — the Evolving Virtual World is the `planet(s₀, R)` role made concrete: a world-author injecting temporal versioning + adversarial misinfo so credibility and conflict-resolution become in-env learnable; and its §5.2 calibration knife-edge is precisely the reward-channel-integrity worry — a hand-designed reflection/diversity reward is gameable (inflate unique_queries without real exploration) and they never test for it. **Over-reflection** — the efficiency+diversity+reflection terms operationalize "a reward that knows when to stop and penalizes redundant search," but it's a per-trajectory heuristic, not the per-type, state-conditioned stop/pivot I want. **env-synth / dive-synth** — versioned+contradictory+adversarial documents are a droppable task-authoring primitive for a conflict-resolution track (preprint→retraction→replication + fake-journal injection); dive-synth already emits R, this is a recipe for authoring conflict into s₀.
+- *Worth stealing / watching:* the reflection-depth detectors — I[backtrack] on an explicit `<think>`-tag admission a direction died, I[strategy_change] on a keyword→author switch — are cheap proxies I'd bolt onto a stop/pivot verifier. The open question the paper leaves entirely: does jointly optimizing correctness+efficiency+reflection+diversity actually beat outcome-only RL, or does the policy just game the process rewards? They fix Σ w_i = 1 but never give the weights or a single measured number — exactly the reward-integrity ablation I'd run.
+
+[Source (arXiv 2606.19893)](https://arxiv.org/abs/2606.19893)
+
+</details>
+
+<details>
+<summary><strong>Reproducing, Analyzing, and Detecting Reward Hacking in Rubric-Based Reinforcement Learning</strong> · Tsinghua / HIT-Shenzhen / Xi'an Jiaotong (THUAIS-Lab), June 2026</summary>
+
+*A ~23-page arXiv paper (about 9 pp of main body + ~2 pp references, then ~11 pp of appendices;
+7 figures, 14 tables) that makes reward hacking in rubric-based RL — where an LLM-as-judge scores
+outputs against rubrics as the reward — directly observable. Its testbed CHERRL uses a dual-judge
+construction that adds one controlled, known bias term on top of a fixed gold reward, so reward
+divergence and the exact onset step of hacking can be read off; the authors then characterize four
+judge biases along discoverability and exploitability and build RHDA, a judge-blind agent that
+recovers hacking onset from training logs. Across six controlled Qwen3-4B/GRPO runs, RHDA localizes
+onset with the lowest error (summed point-distance 120, 0 misses), beating coding-agent and
+CoT-monitor baselines.*
+
+**From the report**
+
+> Dual-judge (Eq.2): the proxy reward is J_biased = J_unbiased + α·bonus, where bonus ∈ {0,1} fires when a specialized "Biased Judge" detects a target bias and α=0.5 sets the injection magnitude; both judges use the same foundation model (e.g. Qwen3.5-27B) to rule out architectural artifacts. — §2.2
+>
+> Hacking, defined (Eq.1): the judge score decomposes additively as J_φ(x,y,R) = r_true(x,y) + B(y;ℬ) + ε, and reward hacking is when optimization pressure accumulates on the bias term — d/dt·E[B] > 0 while d/dt·E[r_true] ≤ 0. — §2.1
+>
+> Onset localization (Eq.5): the reference onset is the modal step from CO = min{t : G(t) ≥ Δ_gap and M(t) ≥ M_pct}, combining a reward gap G(t) = mean(J_biased − J_unbiased) and a shortcut-prevalence metric M(t) among high-scoring outputs, swept over 12 pre-specified threshold pairs and cross-checked by a light expert audit. — §2.3
+>
+> Discoverability (Table 1): onset ranges from step 68 (HealthBench tone, OR=1.02) to step 478 (VerInstruct self-praise, OR=0.53) — "a lower OR between bias utilization and genuine task completion is associated with a significantly delayed onset," i.e. biases entangled with the gold reward are exploited almost immediately. — §3.1
+>
+> Exploitability (Table 5): over 300 independent Qwen3-4B trials the shortcut-generation success ratios are Lexical 100.0%, Tone 98.7%, Self-praise 95.0%, Format 66.0%; the low format-generation success is what constrains its exploitation. — §3.2
+>
+> Detection (Table 6): across six judge-blind runs, RHDA-Plus (Qwen3.5-plus backbone) posts the lowest onset error — summed point-distance 120 / interval-distance 11 / 0 misses, first place, RHDA-397B second; a Claude-Code agent on the *same* backbone and sanitized mirror (CC-Qwen) scores 198/80, and a fixed CoT monitor misses 3 of the 6 runs. — §4.2
+>
+> Caveat the paper states: hacking degrades in-domain capability (VerInstruct IFBench-Strict 33.3 without bias → 23.7 with self-praise) yet shows *no* decline on general benchmarks like Arena-Hard, because the hacking pattern also misleads the evaluator; the analysis is "primarily based on Qwen3-4B" for compute; and RHDA detects but "does not propose or implement fixes." — §2.5 / Limitations
+
+**My read**
+- *What I'd look at:* the dual-judge decomposition (§2.1–2.2) is a portable instrument for my own reward channel — hold a gold reward fixed, inject exactly one known bias at a controlled coefficient, and watch gold-vs-proxy diverge *before* I spend RL. Then the discoverability law (§3.1): biases *correlated with real quality* (OR≥1) get gamed within tens of steps and are the hardest to see, while antagonistic ones onset hundreds of steps later — the dangerous shaping terms are exactly the plausible-looking ones. And RHDA (§4.2): a judge-blind agent recovers onset from only {step, prompt, output, score} by contrasting early/late checkpoints and bisecting — CC-Qwen on the *same* model scoring 198 vs RHDA's 120 says the win is trajectory-level hypothesis tracking, not a bigger model.
+- *Where it meets my notes:* **AgentPlanet** — a direct instrument for the reward-channel-integrity worry: the planet role authors R (the rubric), and CHERRL shows how an LLM-judge R leaks an exploitable bias B and how the policy pushes E[B] up while E[r_true] stalls, with a measurable onset step. The additive audit J = r_true + B + ε *is* the anti-Goodhart decomposition the reward channel needs. **Over-reflection** — a "stop when confident" reward is itself a rubric-shaped judge signal, hence gameable; the discoverability law predicts the failure (if "stop early" correlates with a surface cue the judge likes, it's gamed fast and hard to catch) and RHDA is a template for catching it in my logs. **Synthetic 3D radiology** — the same structure as the honesty axis: a reconstruction that scores beautifully on SSIM while inventing the decisive voxel is a policy pushing E[B] up while r_true stalls — the metric is blind to the failure that matters.
+- *Worth stealing / watching:* run a shadow "biased judge" alongside my real rubric reward during RL and log G(t) = mean(J_biased − J_unbiased) as a live reward-divergence monitor, with an OR pre-check on the first ~60 steps to flag which shaping terms will be gamed first. The open question the paper leaves (its own stated limitation): RHDA detects but never fixes — closing the loop from "onset at step t" to an automatic mitigation (rubric patch, tightened KL anchor) is the natural next step for stop/pivot RL.
+
+[Source (arXiv 2606.04923)](https://arxiv.org/abs/2606.04923)
+
+</details>
+
+<details>
+<summary><strong>MiniMax Sparse Attention</strong> · MiniMax, June 2026</summary>
+
+*A 30-page technical report (17 authors, MiniMax-led with academic co-affiliations incl. NVIDIA)
+introducing MiniMax Sparse Attention (MSA), a blockwise sparse-attention mechanism on a
+Grouped-Query-Attention backbone: a lightweight Index Branch scores KV blocks and independently
+selects a Top-k block subset per GQA group, and a Main Branch then runs exact block-sparse attention
+over only the selected blocks. It is validated on a 109B-parameter (6B-activated) natively-multimodal
+MoE at a 3T-token budget and is the attention architecture behind the released MiniMax-M3. Headline:
+on par with full GQA attention while cutting per-token attention compute 28.4× at 1M context, with
+14.2× prefill / 7.6× decode wall-clock speedup on H800.*
+
+**From the report**
+
+> Method: a lightweight Index Branch scores KV blocks (block score = max-pool over token dot-products, Eq.6) and independently selects a Top-k block subset per GQA group (Eq.7 — one index shared by the group's query heads, the local block always forced in); the Main Branch runs exact block-sparse softmax over only the selected blocks (Eq.8). With B_k=128 and k=16 the per-query attention budget is fixed at 2,048 tokens regardless of sequence length. — §3.1 / §5.4
+>
+> Training recipe: a 41-layer MoE (3 dense + 38 MoE), ~109B total / 6B activated, 64 query / 4 KV heads (head dim 128), native multimodal, 3T-token budget. The non-differentiable Top-k selector is trained by a KL-alignment loss against the Main Branch, stabilized by Gradient Detach (a stop-gradient on the index input that confines the auxiliary loss to the index projections), a two-stage Indexer Warmup, and a forced Local Block. Two routes: MSA-PT trains sparse from scratch after a 40B-token warmup; MSA-CPT converts a 2.6T-token GQA checkpoint with +400B tokens. — §3.2
+>
+> Headline efficiency: "MSA performs on par with GQA while reducing per-token attention compute by 28.4× at 1M context … 14.2× prefill and 7.6× decoding wall-clock speedups on H800." — Abstract / §5.4
+>
+> The report is honest about the FLOP-vs-wall-clock gap: the measured speedup is smaller than the 28.4× FLOP cut because sparse attention adds "index construction, top-k selection, reverse-index materialization, query gathering, and load-balancing overheads" plus a less-regular memory pattern; the gap narrows as context grows because the dense baseline keeps scaling while MSA holds the 2,048-token budget fixed. — §5.4
+>
+> Co-designed CUDA kernel: an exp-free Top-k (softmax is order-preserving, so raw scores are ranked directly) plus a per-thread register Top-k specialized for B_k=128/k=16, and a KV-outer sparse attention that packs query positions into a 128×128 tensor-core MMA — 5.1× vs torch.topk and 3.7× vs a TileLang radix-select at k=16 on H800. — §4.1
+>
+> Contrast vs the DeepSeek MLA line: "DSA sits on top of MLA in its MQA mode: a … lightning indexer scores tokens individually, all query heads share a single Top-k index, and selection is token-level." MSA instead keeps real *uncompressed* KV and does per-GQA-group *independent, block-level* selection (vs NSA's 3-branch design and MoBA's block-averaged-key indexer). — §6
+>
+> Eval setup: ~34 benchmarks under the matched 3T-token budget — reasoning/QA, math/code, image, video, long-context (RULER, HELMET) — plus four agent tasks scored as perplexity (τ²-bench, SWE-bench, HLE, TheAgentCompany). MSA-PT matches or beats Full on many math/multimodal/long-context rows, e.g. RULER-8K 79.8 → 84.2. — §5.1 / §5.3
+>
+> Limitation the report admits: under the tight 2,048-token budget the long-context extension still trails dense on retrieval-heavy subtasks — HELMET-128K Overall 46.53 → 45.93 (−0.60), Rerank/RAG −2.10, RULER-128K QA1/QA2 −1.00 — and it names "closing the residual long-context retrieval gap" plus RL post-training / agentic deployment as future work not yet done. — §5.3 / §7
+
+**My read**
+- *What I'd look at:* §3.2 + §7 on training a *non-differentiable* Top-k selector — a KL-alignment auxiliary loss with the Main Branch as target, plus a stop-gradient on the index input so the auxiliary objective stays a local signal and never becomes an objective on the backbone. That plumbing is directly portable to a gated per-token distillation reward (keep the gated signal from leaking into and Goodharting the main loss). And §5.4 + Table 3: the FLOP-vs-wall-clock gap (28.4× → 14.2×/7.6×) and the enumerated overheads *are* the realistic ceiling for "sparse attention as an energy-floor / on-device latency lever," while the per-subtask deltas (Rerank/RAG −2.10, QA1/QA2 −1.00) locate exactly where a fixed 2,048-token budget hurts the retrieval / multi-hop regime I train for.
+- *Where it meets my notes:* **Wearable world model** — MSA is a sibling lever to the DeepSeek MLA my note weighs, but a *different* one: it keeps real uncompressed KV and cuts attention *compute* at a fixed budget, so it lowers FLOPs/latency without shrinking the KV cache. That sharpens the design space — MSA (compute lever) and MLA/low-bit KV (memory lever) are orthogonal and stackable on-device. **Energy floor of inference** — sparse attention is a floor lever like quantization (28.4× attention-FLOP cut lowers energy/token at long context), and the report hands me the honest ceiling: the gain is overhead-bounded (7.6× decode ≪ 28.4× FLOP), not FLOP-bounded. **Post-cutoff distillation** — the Index Branch is trained by a KL-alignment loss to match the Main Branch's own Top-k selection, an on-policy within-model distillation with a stop-gradient; same family as a gated per-token GKD objective, and the stop-gradient is the transferable detail. **Over-reflection** (stretch) — the paper names agentic deployment as future work and the fixed budget is the substrate that makes long-horizon rollouts affordable, but MSA is silent on reward and stopping.
+- *Worth stealing / watching:* the stop-gradient + KL-alignment recipe for training a non-differentiable auxiliary head without perturbing the backbone — a clean anti-Goodhart plumbing pattern for any multi-role / gated-reward setup. The open question it leaves: MSA cuts compute at a fixed budget but retains the full KV cache, so pairing MSA-style per-group block selection with MLA-style latent-KV or low-bit KV is the unexplored *combined* compute-and-memory lever for on-device world models — they don't attempt it.
+
+[Source (arXiv 2606.13392)](https://arxiv.org/abs/2606.13392)
+
+</details>
+
+<details>
+<summary><strong>Hy3 (Hunyuan 3.0): open-weight 295B-A21B MoE</strong> · Tencent Hunyuan, July 2026</summary>
+
+*Tencent's open-weight release of a 295B-parameter Mixture-of-Experts language model that activates
+21B params per token (top-8 of 192 experts) with a separate 3.8B Multi-Token-Prediction layer and a
+256K native context, positioned as a reasoning + agent model that "rivals flagship open-source
+models with 2–5× the parameters." It ships with an FP8 build, a GRPO/verl RL post-training recipe,
+and vLLM/SGLang serving. This full release (July 6 2026) follows an April 23 "Hy3 Preview" and
+headlines a reliability jump — internally-measured hallucination 12.5%→5.4%, multi-turn issue rate
+17.4%→7.9% — plus a license switch to Apache 2.0 with no field-of-use or geographic carve-out. (All
+headline numbers are Tencent-reported on internal evals, with no third-party verification.)*
+
+**From the report**
+
+> Architecture: 295B total / 21B activated / 3.8B MTP-layer params; 192 experts, top-8 activated; 80 layers + 1 MTP layer; GQA with 64 query / 8 KV heads (head dim 128); hidden 4096; 256K context; 120,832 vocab; BF16. A native CoT schema is exposed as reasoning_effort ∈ {no_think (default, direct), low, high (deep chain-of-thought)}. — §Model Introduction
+>
+> Training: "Building on Hy3 Preview, we further improved the quality and diversity of post-training data while scaling up RL training," shipped as a reproducible stack — "Hy3 supports GRPO reinforcement learning training with verl, training on Megatron-LM (model conversion via NVIDIA Megatron-Bridge) with vLLM rollout." — §Stronger Agent Capabilities
+>
+> Anti-hallucination as a training constraint: "answer when grounded, state when evidence is missing, do not conflate sources or fabricate data," via "fine-grained data cleaning and training constraints"; on internal real-world evals the hallucination rate falls 12.5% → 5.4% and commonsense error 25.4% → 12.7%. — §More Reliable Product Experiences
+>
+> Multi-turn/long-context: through "joint optimization of SFT and RL" on coreference resolution, ellipsis recovery, and multi-turn constraint inheritance, the internal multi-turn issue rate drops 17.4% → 7.9%, with gains on long-dialogue MRCR and outputs that "do not decay or drift over long-horizon interactions." — §More Reliable Product Experiences
+>
+> Eval design, stated as humility: "We don't think public benchmark scores tell the full story. So we ran a blind evaluation with 270 experts using tasks from their work, and Hy3 scored 2.67/4, outperforming GLM-5.1 at 2.51/4," largest advantage in frontend, data & storage, and CI/CD. — §Stronger Agent Capabilities
+>
+> Coding robustness bound: "On SWE-Bench Verified, accuracy variance across scaffoldings like CodeBuddy, Cline, and KiloCode remains within 4%"; SWE-Bench Pro is reported at ~57.9 for the full release (a benchmark-appendix image, Tencent-reported). — §Stronger Agent Capabilities
+>
+> License change: the full release "is released under the Apache License 2.0" with no field-of-use or geographic carve-out, replacing the Preview's "Tencent Hy Community License Agreement," which had explicitly excluded the EU, UK, and South Korea. — §License
+>
+> Infra timeline (Preview narrative): in early 2026 Tencent "tore down the Hunyuan infrastructure and rebuilt from scratch [pre-training and RL]" around "capability systematisation, evaluation authenticity, and cost-performance," reaching the Preview ~90 days later; the July 6 release is that Preview plus scaled higher-quality post-training after feedback from 50+ products. — hy3ai.com
+
+**My read**
+- *What I'd look at:* the §"More Reliable Product Experiences" grounding recipe — the "answer when grounded / state when evidence is missing / do not fabricate" constraint that moved hallucination 12.5→5.4 is exactly the evidence-sufficiency signal I want for stop/pivot RL, but the card never says whether it's SFT data curation, a GRPO reward term, or a decode-time gate — and which one decides how I'd port it. Also the shipped GRPO + verl + Megatron-Bridge + vLLM-rollout stack: a rare public RL-post-training recipe on a 295B MoE, usable as a reference for RL on a large open model.
+- *Where it meets my notes:* **AgentPlanet** — the "evaluation authenticity" principle (refusing to optimize a gameable public benchmark, scoring instead on a blind 270-expert real-task eval) plus the "never fabricate" constraint are reward-integrity moves that keep the policy from gaming its signal, and it ships the GRPO/verl machinery to train the policy leg. **Over-reflection** — "state when evidence is missing" is precisely an evidence-sufficiency stop condition, and the 17.4→7.9 multi-turn drop with "more concise," non-drifting long-horizon outputs is the redundant-continuation behaviour I'm trying to repair (though reported as a general reliability rate, not a per-type over-search taxonomy). **Wearable world model / Energy floor** — 295B at 21B active with GQA (8 KV heads) + FP8 (~300 GB) + MTP speculative decode + the AngelSlim low-bit toolkit is one concrete point in the sparsity/quant/KV-reduction space I contrast against MLA for constrained silicon. **Synthetic 3D radiology** (stretch) — operationalizing hallucination as a measured, drive-down-able rate under a grounded-vs-fabricated rule is the same honesty framing as separating measured signal from prior-invented content, just in text not voxels.
+- *Worth stealing / watching:* the blind-270-expert-on-own-work protocol as a cheap anti-Goodhart eval harness, and the idea of a first-class *internal real-scenario* hallucination / multi-turn-issue rate as an explicit training target rather than only public-benchmark accuracy. Open question the card leaves: it never attributes the grounding gain to SFT data curation vs a GRPO reward vs the reasoning_effort schema — and that attribution is exactly what per-type over-reflection repair needs.
+
+[Source (GitHub)](https://github.com/Tencent-Hunyuan/Hy3)
+
+</details>
+
+<details>
 <summary><strong>Hack-Verifiable Environments: Towards Evaluating Reward Hacking at Scale</strong> · Tel Aviv U. / Columbia / Taso Labs, May 2026</summary>
 
 *An arXiv paper (10 pp.) that measures reward hacking by construction: instead of judging agent trajectories post hoc, it embeds detectable exploits directly into environments via a filesystem wrapper, with a deterministic detector h(obs,a)->{0,1} that flags exploitation by design. The authors instantiate this on TextArena, release a 34-environment "Hack-Verifiable TextArena" spanning four generic hack types (hidden solution, logical bug, opponent prompt read, opponent prompt edit), and benchmark 12 frontier/open-source models plus controlled studies on difficulty, prompting, and persistent context.*
