@@ -134,6 +134,96 @@ reconstructed volume through a differentiable DRR and surface the disagreement w
 the input as a live overlay — a measurement-consistency map — alongside calibrated
 per-voxel variance.
 
+## Redefining it — the re-slice *is* the experiment (2026-07-13)
+
+For two months this note quietly assumed I'd bring my own volume. What I was
+missing was a *supply* of the 2D everyone already shares, and
+[MedPMC](https://arxiv.org/abs/2607.07673) just handed it over: 6.1M PubMed Central
+articles parsed into 11M image–caption pairs, **25.6 % of them radiology** (within
+that, MRI 31.7 % / CT 23.4 % / X-ray 15.1 %), each paired with the sentence that
+names the finding. That is the seed pool I didn't have. But the asterisk is
+load-bearing, so I'll say it before anything else: a published figure is a *picture
+of a slice*, not the slice — windowed, cropped to 8-bit, arrows burned into the
+pixels, the HU scale and slice spacing thrown away. You cannot recover depth from
+it, and even a multi-panel figure is disconnected renders at unknown, non-uniform
+positions (often mixing axial/coronal/sagittal, modalities, even patients). So
+MedPMC is a seed *distribution* plus a caption — never 3D ground truth. The z still
+comes from a prior (invented) or from a *paired* real volume (measured). That one
+distinction is the whole project.
+
+The scene I keep replaying — lift the 2D, then re-slice it from any angle to see the
+abnormality end-on — turns out to be two different operations wearing one sentence,
+and the difference between them *is* the honesty axis. On a **real volume**, oblique
+and [double-oblique MPR](https://radiopaedia.org/articles/double-oblique-multiplanar-reconstruction)
+is a faithful, deterministic viewing transform: a 4×4 reslice matrix and a trilinear
+read, the same maneuver a radiologist does by hand to size an aortic annulus
+perpendicular to the vessel or cut a cardiac short-axis. Nothing is invented — the
+pipeline just *automates the plane the doctor places by hand.* On a **single
+figure**, every plane but the original one is the prior talking. Which reframes the
+multi-angle re-slice from a UX flourish into the actual experiment: a measured lesion
+holds its shape as you swing the plane through it; an invented one wobbles, and the
+per-voxel uncertainty spikes exactly where the caption pointed. **Re-slicing a
+reconstruction fifty ways is a hallucination test** — and that, not a prettier
+surface, is what belongs in the viewer. This is the sharp version of the same worry
+from "the hard part": theory says a single view is the *worst* case (the volume lives
+in the huge null space of a rank-deficient forward operator, so any structure the
+prior hallucinates is by construction consistent with the input and invisible to a
+reprojection check —
+[TMI 2021](https://pubmed.ncbi.nlm.nih.gov/34813472/)); and the field's own metrics
+hide it — the 2026 single-view diffusion reconstructor
+[AXON](https://arxiv.org/abs/2603.26509) reports 21.21 dB single-view vs 21.71 dB
+biplanar, a ~0.5 dB gap that vastly understates that the *entire* depth axis in the
+single-view case is fabricated. No X-ray→CT method yet reports whether a real lesion
+survives; SSIM is
+[provably decoupled from anatomical content](https://www.nature.com/articles/s41598-024-59731-y).
+
+None of the four ideas underneath this is mine, and saying so is what locates the
+contribution. The measured-vs-invented split I keep leaning on was written down as a
+theorem in 2021: Bhadra and Anastasio decompose a reconstruction into a *measurement
+component* the data pins down and a *null-space component* the prior invents, and
+render the latter as a hallucination map — so "the original plane is measured, every
+other plane is the prior" is just the interactive, per-plane reading of that
+null-space term. Oblique MPR is decades old and automated; single-view 2D→3D has been
+a live field since X2CT-GAN; and using multi-view consistency to catch invented
+geometry (test-time-augmentation variance as uncertainty; consistency checks that flag
+a hallucinated scene) is standard in general vision. So the missing piece isn't a
+component — it's the **wiring**: reconstruct 3D from a single *published figure* (not a
+volume), turn arbitrary-angle re-slicing into a live read of that null-space term (the
+invented plane wobbles and its uncertainty spikes; the measured baseline doesn't), and
+always render the invented plane *beside* its measured baseline — seeded at MedPMC
+scale. Every part exists; binding them into one interrogation interface plus a
+verification protocol is the blank, and it's the whole point.
+
+The premise I opened with was a doctor tracing the abnormality slice by slice. The
+redefinition replaces the pencil with the caption: ground the finding-name to the
+image for an in-plane (x, y), turn that box into a mask with
+[MedSAM](https://arxiv.org/abs/2304.12306), propagate it through the volume with
+MedSAM2. Honesty demands the number here too: the best zero-shot radiology phrase
+grounding is ~0.54 mIoU and the best fine-tuned ~0.61 on
+[MS-CXR](https://arxiv.org/abs/2204.09817), with plain contrastive-CLIP saliency down
+at ~0.27 — so ~40 % of the box is wrong even at SOTA, it is chest-X-ray-only gold, and
+it gives you x and y but *never z*. The caption localizes in-plane; the depth of the
+finding is still invented. So the grounded region is a **hypothesis the viewer must
+let you check against the source panel**, not a contour to trust.
+
+None of this is what `medical3d` does yet, and the gap is the plan. Today it seeds
+only from volumes (phantom / NIfTI / LIDC CT) and re-slices *axially* — a scrubber
+over pre-rendered PNGs behind one horizontal plane. The redefinition needs four
+things it doesn't have: a genuine single-image **+ caption** ingest (a lone PNG
+through `--png-stack` just extrudes one slice); a real generative **lift** at the
+reconstructor seam (today's cubic and INR only interpolate a z that already exists);
+an **arbitrary-angle MPR** viewer (ship the intensity volume to the client and sample
+oblique planes on the GPU — Cornerstone3D/VTK.js do this out of the box, NiiVue only
+as a clip-plane); and a **fabrication-aware** honesty layer (reproject-to-*input*
+residual + generative-ensemble variance + the re-slice-consistency map above, because
+the leave-slice-out calibration I built assumes measured slices a single figure can't
+give). The phased build, the permissive-license path (CC-BY/CC0 MedPMC seeds paired
+with LIDC and TotalSegmentator volumes, so there is real ground truth), and the
+evaluation are in `AgentMercury/Architect/medical3d/PLAN.md`. The genuine novelty
+boundary is narrow and worth stating plainly: single-projection→3D is solved for
+*X-ray* projections and text→3D for *clean clinical reports* — nobody lifts a rendered
+publication slice, which is adjacent-but-new, and more ill-posed than either.
+
 Note-to-self: this is the same 2D→3D lift the radiologist already does by hand, now
 done by a prior — powerful and dangerous for exactly the same reason. His pencil
 contour can be wrong too, but a smooth, confident, GPU-rendered surface *looks*
