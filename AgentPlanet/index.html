@@ -1,0 +1,347 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-157941252-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'UA-157941252-1');
+  </script>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+
+  <title>AgentPlanet &mdash; Minbyul Jeong</title>
+  <meta name="author" content="Minbyul Jeong">
+  <meta name="description" content="AgentPlanet: one world, three roles, one model — and the plan to teach a model to author its own training worlds.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" type="text/css" href="../stylesheet.css">
+  <link rel="icon" type="image/png" href="../pictures/personal_icon_2.png">
+
+  <style>
+    /* project-page-specific niceties, layered on top of note-body */
+    .ap-lead { color:#444; font-size:15px; line-height:1.7; }
+    .ap-eq {
+      text-align:center; font-size:15px; background:#f6f8fa; border:1px solid #eaecef;
+      border-radius:6px; padding:14px 12px; overflow-x:auto;
+    }
+    .ap-caption { color:#666; font-size:13px; font-style:italic; margin:8px 4px 0; line-height:1.55; }
+    figure.ap-fig { margin:18px 0 6px; }
+    figure.ap-fig img { max-width:100%; display:block; margin:auto; border:1px solid #eee; border-radius:6px; }
+    .ap-open {
+      border-left:3px solid #16A34A; background:#f2fbf5; padding:12px 16px;
+      border-radius:6px; margin:16px 0;
+    }
+    .ap-status td { vertical-align:top; }
+    .ap-updated { color:#999; font-size:12px; text-align:right; }
+    .ap-tag {
+      display:inline-block; font-size:11px; font-weight:700; color:#15803d;
+      background:#e7f6ec; border-radius:10px; padding:1px 9px; margin-left:6px; vertical-align:middle;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="row" style="margin-top: 10px;">
+      <div class="col-sm-12" style="text-align:center;">
+        <p class="site-nav">
+          <a href="../index.html">Home</a> &nbsp;/&nbsp;
+          <a href="../research-notes.html">Research Notes</a> &nbsp;/&nbsp;
+          <a href="index.html" class="active">AgentPlanet</a>
+        </p>
+        <p style="text-align:center; margin-bottom: 0;">
+          <name>AgentPlanet</name>
+        </p>
+        <p style="text-align:center; color:#888; margin-top: 6px;">
+          One world, three roles, one model &mdash; and the plan to teach a model to author its own worlds.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row">
+      <div class="col">
+        <div class="note-body">
+
+          <p class="ap-lead">
+            Most of what I do day to day is hand-build environments for training tool-using agents:
+            author a synthetic company, seed its database, expose a tool surface, then write tasks
+            against it and grade them. <b>AgentPlanet is the wish to hand that job to the model.</b>
+            A model that can author a world, act in it, and imagine its dynamics can generate its own
+            curriculum &mdash; build a harder world, try to solve it, learn from the attempt &mdash;
+            with no human hand-authoring the environment each round. This page is the running plan for
+            getting there, and the part of it I'm most interested in right now: the one way of authoring
+            a world that nobody has built yet.
+          </p>
+
+          <h2>The bet: one model, three roles</h2>
+
+          <p>
+            Write the probability of a whole world together with a trajectory taken inside it, factor it
+            the only way the chain rule allows, and you get exactly three pieces:
+          </p>
+
+          <div class="ap-eq">
+            p(world, trajectory) = planet(s&#8320;, R) &middot; &prod;<sub>t</sub> &pi;(a<sub>t</sub> | s<sub>t</sub>, R) &middot; W(s<sub>t+1</sub> | s<sub>t</sub>, a<sub>t</sub>, R)
+          </div>
+
+          <p>
+            Three factors, three things a model could learn to <i>be</i>.
+            <b>&pi; : s &rarr; a</b> is the <b>policy</b> &mdash; it inhabits the world and picks the next
+            action. <b>W : (s, a) &rarr; s&prime;</b> is the <b>world model</b> &mdash; it simulates,
+            predicting the next state. And <b>planet : &empty; &rarr; (s&#8320;, R)</b> is the odd one out:
+            it takes nothing and emits an entire world &mdash; the initial state s&#8320; plus the rule-set
+            R (tasks, rubric, verifier, gold). &pi; and W are one-step conditionals; planet is a prior over
+            a whole world. The unifier is that R is a single object wearing three hats: planet
+            <i>authors</i> R, W <i>predicts</i> through R, &pi; is <i>graded</i> by R. The bet is that if
+            one model can play all three roles, self-evolution falls out almost for free.
+          </p>
+
+          <figure class="ap-fig">
+            <img src="../pictures/agentplanet.png" alt="The AgentPlanet factorization: planet authors the world, pi acts within it, W predicts its dynamics.">
+            <figcaption class="ap-caption">
+              The factorization behind AgentPlanet. Writing out the probability of a world and a trajectory
+              taken in it leaves three factors &mdash; planet authors the world, &pi; acts within it, W
+              predicts its dynamics &mdash; so one model could, in principle, learn to be all three.
+            </figcaption>
+          </figure>
+
+          <h2>planet is a pipeline I already run by hand</h2>
+
+          <p>
+            The useful surprise is that the planet role already exists as a pipeline, split cleanly in two.
+            <b>env-synth</b> generates s&#8320; &mdash; a synthetic company, its seeded database, its tool
+            surface, its entities &mdash; and <b>dive-synth</b> generates R &mdash; the tasks, the rubric,
+            the verifier, the gold. So, roughly,
+          </p>
+
+          <div class="ap-eq">
+            planet(s&#8320;, R) &nbsp;&asymp;&nbsp; dive-synth(R | s&#8320;) &nbsp;&#8728;&nbsp; env-synth(s&#8320;)
+          </div>
+
+          <p>
+            "Teach the model environment synthesis" just means make the model do what this pipeline does by
+            hand. And the moment you look closely at that pipeline, you notice it makes a very specific
+            choice about <i>how</i> it authors a world &mdash; a choice it shares with most of the field,
+            and one I now think is a ceiling. <b>It freezes the world.</b> env-synth seeds a database, bakes
+            it into a container image, brings it up &mdash; and from that instant the state is a fact that
+            does not change while dive-synth writes tasks against it. That freezing is what makes our gold
+            trustworthy: because the seed never moves, the gold answer is a deterministic readout, and the
+            verifier is just the environment's own constraint query. Grounding is the whole point of the line.
+            But the freezing is also a ceiling, and seeing why is the rest of this page.
+          </p>
+
+          <h2>Four ways to author a world</h2>
+
+          <p>
+            The "approaches" I keep hearing us talk about are not four systems. They're four <i>processes</i>
+            for emitting a world (s&#8320;, R), and they differ on two questions only. <b>How is the world
+            realized</b> &mdash; as <i>materialized</i> executable state (a real container + database whose
+            gold is a deterministic readout), or <i>neurally</i> (a language model predicts each observation,
+            ungrounded)? And <b>does the world move while you author</b> &mdash; held <i>static</i>, one
+            immutable draw, or <i>moving</i>, mutated as part of the process? Two axes, four cells.
+          </p>
+
+          <figure class="ap-fig">
+            <img src="world-synthesis-quadrant.png" alt="A 2x2: how the world is realized (materialized vs neural) by whether it moves while you author it (static vs moving). The materialized-moving cell is empty.">
+            <figcaption class="ap-caption">
+              How the world is realized &times; whether it moves while you author it. The static column holds
+              the world still and varies the task; the moving column changes the world itself. Three of the
+              four cells are occupied by our pipeline or by a 2026 paper; the materialized-moving cell &mdash;
+              grounded gold <i>and</i> a moving curriculum &mdash; is empty.
+            </figcaption>
+          </figure>
+
+          <h3>The static half: freeze the world, vary the task</h3>
+
+          <p>
+            The left column is where we live, and it splits by <i>where the difficulty comes from.</i>
+            <b>(1) Obfuscate the question</b> is env-synth first &mdash; the state is up before a single task
+            exists &mdash; and then difficulty is loaded into the <i>instruction</i>: paraphrase and
+            indirection, hiding the load-bearing fact inside emails and tickets. The discipline that matters
+            is that obfuscation touches the instruction text and <b>never the seed</b>, so the deterministic
+            verifier still holds. <b>(2) Deepen the traversal</b> is the dive-synth half, and it makes the
+            <i>task</i> a multi-hop readout of the persisted state: aggregate over a whole child set, walk a
+            cross-service constraint graph, force real writes. Because the gold is <i>derived from the state</i>,
+            the task is <b>unhackable</b> &mdash; you cannot answer it from parametric memory, only from the
+            world. The purest outside example of this quadrant is <a href="https://arxiv.org/abs/2602.10090">AWM</a>
+            (UNC + Snowflake, ICML&nbsp;2026), 1,000 database-backed MCP environments graded by end-state.
+            And it is the paper that draws the boundary of the whole column out loud: in its own limitations
+            it says it "does not evaluate behavior under intentionally injected adversarial perturbations such
+            as <b>corrupted database rows, malicious tool outputs, or prompt-injection.</b>" The best
+            static-materialized system <i>names</i> the moving cell &mdash; and declines it.
+          </p>
+
+          <h3>The lazy corner: build on demand, in two flavors</h3>
+
+          <p>
+            Approach <b>(3)</b> unfreezes not the world after it's built, but <i>when</i> you build it &mdash;
+            and it has two flavors worth separating. <b>Materialized-lazy</b>: don't pre-build the whole
+            world; provision only the state a task actually needs, when it needs it, on a persistent substrate
+            you never throw away. This is genuine on-demand construction that keeps grounding, and it's an
+            active direction. <b>Neural-lazy</b> is
+            <a href="https://arxiv.org/abs/2606.24597">Qwen-AgentWorld</a>'s answer to the same wish: don't
+            build the state at all &mdash; a trained Language World Model predicts each observation
+            turn-by-turn, "without requiring dedicated infrastructure." Infinite worlds at near-zero marginal
+            cost, and ungrounded, which they pay for directly ("Factuality is the weakest dimension," "State
+            is the bottleneck"). Same "on demand," opposite trade: one keeps grounding and pays to build the
+            slice; the other drops the slice and pays in fidelity. Either way, (3) is still a <i>static</i>
+            world once the slice exists. It moves creation, not evolution.
+          </p>
+
+          <h2>The empty cell: move a materialized world <span class="ap-tag">(4) &mdash; where I'm headed</span></h2>
+
+          <p>
+            That leaves the top-right corner. <b>(4): each run, mutate the real state to escalate, and
+            re-derive gold on the new state.</b> Not the observation &mdash; the state. This is the first of
+            the four processes that runs the world-<i>transition</i> operator W at <i>authoring</i> time
+            rather than at rollout time. And here is the tie back to the three roles: I tested a <i>neural</i>
+            W end-to-end and it came back a characterized negative &mdash; served a frozen policy the learned
+            world-model's observations, it solved <b>0 of 40</b> tasks where the real oracle solved 32.
+            Approach (4) is the <i>materialized</i> W: you don't ask a model to imagine the next state, you
+            <b>execute a real delta and re-derive the gold deterministically.</b> The thing the learned
+            world-model couldn't do, the executable substrate can.
+          </p>
+
+          <p>
+            Look at who is near this cell and you can see it is empty.
+            <a href="https://arxiv.org/abs/2606.24597">Qwen-AgentWorld</a> moves the world hard, and proves
+            it is the biggest lever there is &mdash; its "controllable simulation" injects errors, withholds
+            partial results, and forces pagination, worth <b>+12.3 on MCPMark</b>, and controllable simulation
+            <b>beats training in the real environment</b> (50.3 vs 45.6). But it moves the world <i>neurally</i>;
+            nothing is re-materialized, the model just <i>says</i> the state changed.
+            <a href="https://arxiv.org/abs/2604.18292">Agent-World</a> (RUC + ByteDance, Apr&nbsp;2026) mutates
+            a <i>materialized</i> database, but only as <b>enrichment</b> for diversity, never adversarial:
+            it grows the world, it doesn't sharpen it against the agent. And AWM refuses to move the world at
+            all. So materialized &times; moving-adversarially is unoccupied &mdash; and it is exactly the cell
+            where our grounding stops being a constraint and starts being the advantage.
+          </p>
+
+          <div class="ap-open">
+            <b>We already own the pieces &mdash; not yet the edge between them.</b> We built a
+            controllable-simulation layer that perturbs the observation the agent sees &mdash; injected
+            errors, pagination, withheld and partial results &mdash; the materialized twin of Qwen's neural
+            version. But by design it <i>never mutates the store</i>: grounded, yet fixed difficulty. What
+            (4) needs on top is an event-sourced, versioned state substrate, so a mutation is a cheap
+            branch-and-re-derive rather than a full rebuild. One piece makes difficulty; the other makes
+            state move and persist. The missing edge is a single one: <b>a run's verified outcome hardening
+            the state for the next run.</b>
+          </div>
+
+          <h2>Why it isn't wired yet &mdash; three walls</h2>
+
+          <p>
+            If it were free it would already exist. It isn't, for three reasons, and they are the honest
+            content of this plan.
+          </p>
+
+          <p>
+            <b>Gold goes stale the instant the state moves.</b> The whole grounding guarantee is that gold is
+            a readout of the seed; move the seed and every cached gold is wrong. Our controllable-sim layer
+            dodges this precisely by never touching the store &mdash; which is why it can make a task hard but
+            not <i>harder</i>, run over run. Approach (4) can't dodge it: every escalation step has to
+            re-derive gold on the new state. Materialized is what makes that even possible &mdash; re-run the
+            constraint query against the mutated database and you get a fresh, correct gold &mdash; but you
+            pay that derivation on every step.
+          </p>
+
+          <p>
+            <b>Escalation can break solvability.</b> An unconstrained state edit can make a task unsolvable or
+            degenerate, and the fastest route to a "harder" world is a broken one &mdash; the failure that
+            sinks PAIRED-style generators. It is exactly why Agent-World's mutation stays enrichment. A (4)
+            loop needs an anti-degeneracy gate <i>after each mutation</i>: the task must still be reachable
+            through the declared tool surface (in one audit, 77 of 167 constraints were tool-unrealizable
+            &mdash; about 91% dead yield), and the gold must still be derivable. The world-design invariant
+            battery is the right shape for that gate, run <i>inside</i> the escalation loop rather than once
+            at the end.
+          </p>
+
+          <p>
+            <b>The consequence loop is a reward-integrity hazard.</b> The version of (4) that excites me most
+            is the closed one &mdash; the agent's own verified delta commits into the world and shapes the
+            next task. But if the same pipeline both mutates the world and grades it, the generator can drift
+            the world toward states where its own answers look right &mdash; Goodhart on the reward channel
+            itself. This is the precise reason a controlled study of <b>reward-channel integrity</b> &mdash;
+            deterministic oracle versus LLM-judge &mdash; has to land <i>before</i> (4) closes its loop, not
+            after.
+          </p>
+
+          <h2>Where this goes</h2>
+
+          <p>
+            Open-loop first, because the cheap experiment answers the load-bearing question. Take a
+            <i>verified</i> rollout delta &mdash; gated by the deterministic constraint-query verifier, not
+            the judge &mdash; commit it into a branch of the versioned world so the trunk stays clean and the
+            mutation costs a branch, not a rebuild; re-derive gold on the branch; derive the next task from
+            the harder state. Run it on a <b>fixed perturbation schedule, not agent-driven</b>, and ask the
+            one question worth asking first: <i>does a materialized world that moves beat the same world held
+            static, at equal grounding?</i> Qwen answered that yes for a neural world. Nobody has answered it
+            for a grounded one &mdash; and if the answer holds, it holds without the fidelity tax the neural
+            route pays. Only after the reward channel is shown un-gameable do I close the loop and let the
+            agent's own actions drive the escalation. The deliverable that would outlive any single model is
+            the artifact underneath: <b>the first grounded moving-world synthesizer</b> &mdash; the
+            materialized answer to neural controllable simulation.
+          </p>
+
+          <h2>Honest status</h2>
+
+          <p>
+            Because this is a plan and not a pitch: of the three roles, only &pi; is mature. Here is where the
+            pieces actually sit.
+          </p>
+
+          <table class="ap-status">
+            <thead>
+              <tr><th>Role / piece</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><b>&pi;</b> &mdash; policy</td><td>Mature. This is what we train and evaluate today.</td></tr>
+              <tr><td><b>W</b> &mdash; world model (neural)</td><td>Tested end-to-end, characterized negative: 0/40 vs a 32/40 oracle. The signature is "heuristic-not-world-model," not a capacity verdict.</td></tr>
+              <tr><td><b>planet</b> &mdash; world author</td><td>Runs by hand as env-synth &#8728; dive-synth; learning it is Stage-1 (gate-pass 0.50 &rarr; 0.83), Stage-2 waits on a served checkpoint.</td></tr>
+              <tr><td><b>(1)(2) static-materialized</b></td><td>The production system. Instruction-obfuscated tasks and multi-hop state-readout tasks, verified against the environment's own constraints.</td></tr>
+              <tr><td><b>(3) on-demand build</b></td><td>An active direction (materialized provision-on-demand; the neural counterpart is Qwen's Language World Model).</td></tr>
+              <tr><td><b>(4) moving-materialized</b></td><td>The empty cell. A thesis plus a concrete plan &mdash; not a trained system. Gated on reward-channel integrity before the loop closes.</td></tr>
+            </tbody>
+          </table>
+
+          <p>
+            I've spent a year making worlds that stand perfectly still so their gold can be trusted. The bet
+            in the empty cell is that I can let them move and keep the gold trustworthy anyway &mdash; because
+            when the state is real, re-deriving the truth is just another query.
+          </p>
+
+          <p class="ap-caption">
+            Related: the research note
+            <a href="../research-notes.html#2026-07-06-agentplanet-one-world-three-roles-one-model">AgentPlanet: one world, three roles, one model</a>
+            (the factorization and the self-similar recursion) and the papers cited above &mdash;
+            <a href="https://arxiv.org/abs/2602.10090">AWM</a>,
+            <a href="https://arxiv.org/abs/2604.18292">Agent-World</a>,
+            <a href="https://arxiv.org/abs/2606.24597">Qwen-AgentWorld</a>.
+          </p>
+
+          <p class="ap-updated">Last updated 2026-07-18.</p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row">
+      <div class="col">
+        <p style="text-align:right;font-size:small;">
+          Template based on <a href="https://jonbarron.info/">Jon Barron's website</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

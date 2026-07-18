@@ -4,3 +4,6 @@
 _site
 Gemfile.lock
 *.code-workspace
+
+# private / internal thinking notes — never published
+notes/_private/
