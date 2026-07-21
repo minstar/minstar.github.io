@@ -8,6 +8,82 @@ my research notes above. Titles are toggles.
 
 
 <details>
+<summary><strong>Cura 1T: Specialized Model for Agentic Healthcare</strong> · actAVA AI, July 2026</summary>
+
+*Technical report for Cura 1T, a healthcare-specialized agentic model built as rank-32 LoRA
+adapters over the 1-trillion-parameter Kimi-K2.6 base (256K context, native text+vision). The
+model comes out of a human-gated self-evolution loop: a training agent plans a target capability,
+trains candidates through an SFT→RL→SDFT stack, evaluates benchmark trajectories, and refines the
+data mixture from the observed failures. It reports top-or-near-top scores among frontier
+baselines on MedAgentBench, HealthBench, MedXpertQA, and AgentClinic while staying competitive
+out of domain.*
+
+**From the report**
+
+> Core loop: each evolution round, a training agent "writes a plan, trains candidate adapters through the SFT-to-RL-to-SDFT stack, evaluates the model, and reports the evidence for a keep-or-revise decision"; "Human review gates the plan before training and the keep, revert, or deploy decision after evaluation." — §3.1 / Fig. 2 caption
+>
+> Training recipe: rank-32 LoRA adapters on the Kimi-K2.6 base — lr 3e-4 linear, batch 128, 256K-token sequences, 6 epochs with early stopping; SFT is the low-cost screen inside each round before the costlier RL/SDFT runs. Data synthesis is driven by six agent skills: retention anchor, reasoning correction, knowledge injection, behavior calibration, task-specific repairs ("including agentic workflow errors"), and data-mixture curation. — §3.1–3.2 / App. A.1 (Table 7)
+>
+> SDFT (self-distillation fine-tuning) minimizes KL(π_θ(·|x) ‖ π(·|x,c)) where c is privileged context — an intervened trajectory, reference behavior, or verified knowledge — removed at student time: "the update is anchored to trajectories the model can itself produce, which is important for long medical reasoning traces." — §3.1, Eq. 1
+>
+> MedAgentBench: evolution rounds raise dev-path task success 0.883 → 0.973 (tool-use round 0.943, +retention 0.967, harness bug fix 0.973; dev path at T=0.6 per §4.1); the released consolidated model scores 0.940 vs Claude Opus 4.8 0.937, Gemini 3.1 Pro 0.913, GPT-5.5 0.894. — §4.2 / Table 3
+>
+> HealthBench: base 0.503 Professional / 0.222 Hard → 0.662 / 0.368; "rejection sampling saturates quickly: the best score among multiple rollouts is not substantially higher than the average, suggesting that the model behavior requires correction." — §4.3 / Tables 1, 4
+>
+> MedXpertQA (2,450 text + 2,000 multimodal questions, pass@1 at T=1.0): 0.655 vs base 0.569, second to GPT-5.5's 0.675 — but reasoning-correction-only rounds trailed the base and were reverted, and Round 4's mixture tuning was "reverted because overlong traces cause non-termination." — §4.4 / Table 5
+>
+> Harness surgery: AgentClinic's free-text protocol is replaced with two native tools, order_test(test_name) and submit_diagnosis(diagnosis), so "a test result can enter the trajectory only through an executed order_test call"; MedAgentBench is graded as a native tool-caller against a running FHIR server whose grader inspects the URL and resource payload of each recorded write. — App. A.2 / §4.2
+>
+> "The benchmarks in this report measure narrow competencies under fixed harnesses, and strong scores on those benchmarks do not establish safety for unsupervised clinical use"; results "remain bounded by the current training regime," with full-parameter updates left to future work. — §6
+
+**My read**
+- *What I'd look at:* Tables 3–6 as a ledger — every row is one data-mixture intervention with a score and a keep/revert decision, i.e., SFT-mixture iteration made explicit and auditable; Table 5 alone shows reasoning-correction-only regressing below base until knowledge injection plus retention anchors join the mix. Then §3.1/Eq. 1: SDFT samples from the student while the teacher side conditions on privileged context the student never sees — the anchor-to-own-trajectories trick that keeps long-trace distillation from drifting off-policy. And §4.3's saturating best-of-n is the tell that more sampling can't fix behavior — the signature that pushes you from rejection sampling toward trace repair.
+- *Where it meets my notes:* **Over-reflection in search agents** — their loop routes each failure type to a distinct repair (anchor vs correction vs injection vs calibration), the per-type-repair shape of my taxonomy; and the Round 4 revert for "overlong traces cause non-termination" is over-long reasoning surfacing as a concrete training regression that wants a stop-style fix. **AgentPlanet** — tuning the mixture directly against benchmark trajectories is a Goodhart-prone reward channel, and their countermeasures (human keep/revert gates; format/safety/dedup/coverage validation gates; AIME/GPQA/tau2 out-of-domain retention as the leak detector) map onto the anti-Goodhart gate battery. **Post-cutoff distillation** — SDFT's privileged-context teacher π(·|x,c) with c stripped at student time is mechanically the note's knowledge-gated distillation sketch; being same-tokenizer self-distillation, the cross-tokenizer question the note leaves open never arises. **Synthetic 3D radiology** — a stretch: adapter-tuned multimodal medical gains (MedXpertQA multimodal 0.672 → 0.722, AgentClinic NEJM 0.400 → 0.800) but no volumetric or re-slice-style hallucination testing anywhere.
+- *Worth stealing / watching:* the keep/revert decision table (intervention, score, decision per round) as an auditable ledger for mixture iteration — it makes regressions like reasoning-correction-below-base impossible to miss; and the open question the report leaves: consolidation costs real points (best single-round 0.973 → consolidated 0.940) with no mechanism offered for merging capability-specific mixtures without that tax.
+
+[Source (arXiv 2607.15314)](https://arxiv.org/abs/2607.15314)
+
+</details>
+
+<details>
+<summary><strong>RecGPT-V3 Technical Report</strong> · Alibaba (Taobao) RecGPT Team, July 2026</summary>
+
+*A 24-author industrial technical report on the third generation of Taobao's LLM-based
+recommender, deployed in the homepage "Guess What You Like" feed serving hundreds of millions of
+daily active users. It extends a Qwen3-14B backbone with 65,536 Semantic-ID tokens for direct
+item grounding, replaces per-request reprocessing of long user histories with a structured Memory
+Hub, and compresses multi-thousand-token chain-of-thought rationales into at most 10 decodable
+latent tokens. Headline claim: +1.28% IPV / +1.00% CTR / +3.97% GMV in large-scale online A/B
+tests while cutting end-to-end serving compute by 52.4%.*
+
+**From the report**
+
+> Core architecture: a stateful, hybrid-modal recommender — a Memory Hub distills user histories (~55K tokens for highly active users) into structured memory units (94.5% token reduction, each unit traceable to its originating behaviors), and the backbone is extended with 65,536 Semantic-ID tokens from a two-level RQ-VAE (32,768 per level) over CN-CLIP + Q-Former multimodal item embeddings. — §2 / §3.1
+>
+> Training recipe: Stage-1 continual pre-training on SID-grounding data with ~10% general-domain mix; Stage-2 instruction tuning over six SID-related alignment tasks (five SID↔text translations plus sid2sid sequential recommendation; sid2sid 20.0%, title2sid 14.7%, …) with ~20% general-domain data against forgetting. — §3.2 / Table 3
+>
+> Reasoning internalization: explicit CoT rationales (~2,300 tokens on average) distilled from DeepSeek-V3.2 are compressed into at most 10 learnable latent tokens via a single-segment / multi-segment / full-trace reconstruction curriculum that keeps the latents decodable into readable rationales — the abstract's headline is "lowering output token cost by 200x." — §4.1–4.2.1
+>
+> RL stage (RLRF): GRPO with reward = the mean of the top-K=100 CTRScores from the production ranking model, gated by multiplicative alignment/diversity/length thresholds (Eq. 16–17); motivated by two stated failures of a HitRate reward — group-reward sparsity that collapses GRPO advantages to zero, and inconsistency with the serving pipeline. — §4.2.2
+>
+> Offline headline: HR@30 (Category) 0.3050 (foundation) → 0.3508 (+explicit CoT) → 0.3462 (+latent) → 0.3693 (+RL), with CTRScore 0.0624 → 0.0679 — latent reasoning alone slightly trails explicit CoT until RL recovers and surpasses it. — §5.4.1 / Table 10
+>
+> Online headline: feed-scenario A/B against live RecGPT-V2 gives IPV +1.28%, CTR +1.00%, TC +1.97%, GMV +3.97% (item scene GMV +7.51%), with end-to-end serving compute down 52.4% — RecGPT-V3 runs on 19% of RecGPT-V1's compute. — §5.1 Table 6 / Fig. 1
+>
+> Eval setup: A/B on the Taobao homepage "Guess What You Like" feed at 1% traffic per arm vs a RecGPT-V2 control; Memory Hub quality is human-audited — 82.89% behavior-pattern accuracy over 2,514 patterns and 95.27% behavior-index accuracy over 21,268 indices. — §5.1 / §5.2 Table 7
+>
+> Stated caveat: removing general-domain data during SID adaptation causes catastrophic collapse — GSM8K 94.31% → 4.70%, MMLU → 0.12%, IFEval → 23.29% — so the 10–20% replay mix is load-bearing; even with it, IFEval still drops 81.52% → 75.60%. — §5.3 / Fig. 6
+
+**My read**
+- *What I'd look at:* §4.2.2 first — a HitRate reward collapses GRPO group advantages to zero and diverges from the serving stack, so they densify it with the mean of the top-100 scores from the production ranking model and then guard the proxy with hard multiplicative gates; a deployed instance of proxy-reward-plus-gate, and the failure they name (reward computed outside the serving pipeline diverging from downstream reality) is reward-channel integrity in serving clothes. Then §4.1's reconstruction curriculum: full-trace reconstruction forces the ≤10 latent tokens to stay sufficient to regenerate the whole rationale, which makes compressed reasoning auditable on demand rather than opaque — the property you'd need before trusting latent reasoning anywhere trace-reading is the debugging tool. §5.3 is the sharpest specialization-forgetting datapoint I've seen tied to vocabulary extension; read it before grafting any new token space onto a backbone.
+- *Where it meets my notes:* **Over-reflection in search agents** — a complementary lever to repairing or stopping verbose traces: internalize them; after RL, the latent model (HR@30 0.3693) beats the explicit-CoT model (0.3508) distilled from the same teacher traces. **AgentPlanet** — RLRF is the proxy-reward-plus-hard-gate structure of my reward-integrity framing, run at hundreds-of-millions-DAU scale. **Post-cutoff distillation** — the same distill-then-RL shape, but grounding comes from 65,536 new SID tokens rather than cross-tokenizer alignment, and the GSM8K 94.31% → 4.70% collapse without 10–20% general replay is direct calibration for how much replay a specialization mix needs. **Energy floor of inference** — a stretch: Table 11's throughput jump (166K → 498K input tokens/min once output length drops 2,840 → 122) locates the serving bottleneck at output generation, but that is compute-cost evidence, not an energy measurement.
+- *Worth stealing / watching:* the reward-densification trick — replace a sparse binary reward with the mean of top-K scores from a downstream learned scorer to stop GRPO advantages collapsing on hard queries, but only together with their gate structure, since the scorer is itself Goodhart-able; and the audit gap the report leaves: no fidelity metric ties decoded rationales back to the original traces, so whether a decode reflects the computation that actually drove the prediction or is a plausible post-hoc story is untested.
+
+[Source (arXiv 2607.15591)](https://arxiv.org/abs/2607.15591)
+
+</details>
+
+<details>
 <summary><strong>System Card: Claude Opus 4.8</strong> · Anthropic, May 2026</summary>
 
 *A 246-page pre-deployment system card for Claude Opus 4.8 (a text-only upgrade over
