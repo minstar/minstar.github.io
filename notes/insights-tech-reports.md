@@ -8,6 +8,43 @@ my research notes above. Titles are toggles.
 
 
 <details>
+<summary><strong>Kimi K3: Open Frontier Intelligence</strong> · Moonshot AI (Kimi Team), July 2026</summary>
+
+*Release blog (July 16, 2026) for Kimi K3, a 2.8-trillion-parameter open-weights MoE model with
+native vision and a 1M-token context window, billed as the world's first open 3T-class model —
+full weights promised by July 27, 2026, with architecture/training/eval details deferred to a
+forthcoming technical report (no stated date). Headline claim: top open-model results across
+coding, agentic, and search benchmarks while explicitly still trailing Claude Fable 5 and GPT 5.6
+Sol overall.*
+
+**From the report**
+
+> 2.8T total parameters — "the world's first open 3T-class model" — built on Kimi Delta Attention (KDA) plus Attention Residuals (AttnRes), with MoE sparsity pushed to 16 of 896 experts activated under a Stable LatentMoE framework, claiming ~2.5× overall scaling efficiency over Kimi K2. — §An Open 3T-Class Model
+>
+> Training-stability stack: Quantile Balancing derives expert allocation directly from router-score quantiles, "eliminating heuristic updates and a sensitive balancing hyperparameter"; Per-Head Muon optimizes attention heads independently; SiTU and Gated MLA improve activation control and attention selectivity. — §Architecture and Infrastructure
+>
+> Quantization-aware training from the SFT stage onward, with MXFP4 weights and MXFP8 activations; fully balanced expert-parallel training with static shapes and no host synchronization on the critical path; recommended serving is supernodes of 64+ accelerators, with a KDA prefill-cache implementation contributed to vLLM. — §Architecture and Infrastructure
+>
+> BrowseComp 91.2 vs Claude Fable 5 88.0, GPT 5.6 Sol 90.4, Claude Opus 4.8 84.3, GPT 5.5 84.4 — measured with the Claude-model-card context-compaction strategy triggered at 300K tokens; with a raw 1M-token window and no context management K3 scores 90.4. Competitor numbers are cited from Anthropic/OpenAI pages, not re-run. — §Full Benchmark Table + Footnotes
+>
+> Coding: Terminal-Bench 2.1 88.3 (KimiCode harness; GPT 5.6 Sol 88.8 via Codex, both Claude models 84.6 via Terminus 2 — best-across-harness reporting), SWE Marathon 42.0 (top, on an H20-recalibrated branch of official v1.1 that keeps "correctness and anti-cheat validators unchanged" and where Claude Fable 5 "hit fallbacks on 35% of the tasks"), DeepSWE 67.5 (67.3 on the official leaderboard, mini-SWE-agent harness). — §Full Benchmark Table + Footnotes
+>
+> Agentic tool use: MCP Atlas 84.2 (Fable 5 84.7) on the 500-task public subset with a 100-turn limit and Gemini 3.1 Pro as judge; AutomationBench 30.8 (top) on the 600-task public subset; Toolathlon-Verified 73.2 vs Fable 5 77.9; DeepSearchQA F1 95.0 (top). — §Full Benchmark Table + Footnotes
+>
+> Eval protocol: every K3 number at reasoning effort "max", temperature 1.0, top-p 1.0, each benchmark run under one of three agentic harnesses (KimiCode, Claude Code, Codex); PostTrain Bench re-run on H20 GPUs (the official setting is H100), averaged over three runs. — §Footnotes
+>
+> Limitations the blog itself states: K3 "was trained in the preserved thinking history mode" — if the harness fails to pass back all historical thinking, or a session switches to K3 mid-way, "generation quality may become highly unstable"; "excessive proactiveness" ("it may make unexpected decisions on the user's behalf"); and "a noticeable gap in user experience compared with Claude Fable 5 and GPT 5.6 Sol". — §Limitations
+
+**My read**
+- *What I'd look at:* the BrowseComp footnote before the headline — 91.2 with compaction triggered at 300K vs 90.4 on the raw 1M window is a rare explicit measurement that the context-management scaffold alone moves a search benchmark by ~1 point, so compaction policy belongs in eval configs as a controlled variable, not ambient harness detail; the preserved-thinking-history limitation, which pins down the keep-vs-strip think-history choice for trajectory SFT (a frontier lab stating outright that stripping it destabilizes a model trained in preserved mode); and Quantile Balancing as the thing to chase into the technical report — expert allocation from router-score quantiles instead of a sensitive balancing hyperparameter (the blog doesn't name the scheme it replaces), plus static-shape fully-balanced expert parallelism, as the recipe that keeps 16-of-896 sparsity stable.
+- *Where it meets my notes:* **Over-reflection in search agents** — the self-admitted "excessive proactiveness" is the actuator-side sibling of my confirm-then-keep-searching failure mode: the same miscalibrated continue/act policy, repaired here with prompt-side constraints where my bet is state-conditioned stop/pivot RL. **AgentPlanet** — the eval footnotes are a live catalog of reward-channel mechanics (SWE Marathon recalibrates perf gates for H20 while keeping "correctness and anti-cheat validators unchanged"; MCP Atlas outsources judgment to a named LLM judge) — exactly the channel-integrity surface my anti-Goodhart framing says must be audited separately from the score itself. **Wearable world model / Energy floor of inference** — MXFP4-weight QAT from the SFT stage onward at frontier quality is evidence for the quantization lever both notes lean on: baked into post-training, FP4-class weights hold — though at 2.8T the memory arithmetic points the opposite way from a wearable. **FlashSAC for search agents** (a stretch) — the blog only establishes that search rollouts now run 300K–1M tokens, which sharpens my rollout-economics argument for off-policy reuse; it says nothing about RL itself.
+- *Worth stealing / watching:* the dual-regime long-context reporting convention — publish both the compacted and the unmanaged full-context number for every BrowseComp-family run (K3's 91.2-vs-90.4 split shows the scaffold alone is worth ~1 point, and most tables hide it); and the open question of whether Quantile Balancing's hyperparameter-free expert allocation survives post-training distribution shift at 16-of-896 sparsity — the technical report's ablation there decides whether balancing-free routing is safe to assume when fine-tuning large open MoEs.
+
+[Source (Moonshot AI tech blog)](https://www.kimi.com/blog/kimi-k3)
+
+</details>
+
+<details>
 <summary><strong>Cura 1T: Specialized Model for Agentic Healthcare</strong> · actAVA AI, July 2026</summary>
 
 *Technical report for Cura 1T, a healthcare-specialized agentic model built as rank-32 LoRA
