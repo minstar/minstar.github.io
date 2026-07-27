@@ -206,23 +206,97 @@ it gives you x and y but *never z*. The caption localizes in-plane; the depth of
 finding is still invented. So the grounded region is a **hypothesis the viewer must
 let you check against the source panel**, not a contour to trust.
 
-None of this is what `medical3d` does yet, and the gap is the plan. Today it seeds
-only from volumes (phantom / NIfTI / LIDC CT) and re-slices *axially* — a scrubber
-over pre-rendered PNGs behind one horizontal plane. The redefinition needs four
-things it doesn't have: a genuine single-image **+ caption** ingest (a lone PNG
-through `--png-stack` just extrudes one slice); a real generative **lift** at the
-reconstructor seam (today's cubic and INR only interpolate a z that already exists);
-an **arbitrary-angle MPR** viewer (ship the intensity volume to the client and sample
-oblique planes on the GPU — Cornerstone3D/VTK.js do this out of the box, NiiVue only
-as a clip-plane); and a **fabrication-aware** honesty layer (reproject-to-*input*
-residual + generative-ensemble variance + the re-slice-consistency map above, because
-the leave-slice-out calibration I built assumes measured slices a single figure can't
-give). The phased build, the permissive-license path (CC-BY/CC0 MedPMC seeds paired
-with LIDC and TotalSegmentator volumes, so there is real ground truth), and the
-evaluation are in `AgentMercury/Architect/medical3d/PLAN.md`. The genuine novelty
-boundary is narrow and worth stating plainly: single-projection→3D is solved for
-*X-ray* projections and text→3D for *clean clinical reports* — nobody lifts a rendered
-publication slice, which is adjacent-but-new, and more ill-posed than either.
+None of that was what `medical3d` did when I wrote this, and the gap was the plan. It
+seeded only from volumes (phantom / NIfTI / LIDC CT) and re-sliced *axially* — a
+scrubber over pre-rendered PNGs behind one horizontal plane. Four things were missing:
+a genuine single-image **+ caption** ingest (a lone PNG through `--png-stack` just
+extrudes one slice); a real generative **lift** at the reconstructor seam (cubic and
+INR only interpolate a z that already exists); an **arbitrary-angle MPR** viewer (ship
+the intensity volume to the client and sample oblique planes on the GPU —
+Cornerstone3D/VTK.js do this out of the box, NiiVue only as a clip-plane); and a
+**fabrication-aware** honesty layer (reproject-to-*input* residual + generative-ensemble
+variance + the re-slice-consistency map above, because the leave-slice-out calibration
+I built assumes measured slices a single figure can't give). All four are built now —
+what they turned out to measure is the section below. The phased build, the
+permissive-license path (CC-BY/CC0 MedPMC seeds paired with LIDC and TotalSegmentator
+volumes, so there is real ground truth), and the evaluation are in
+`AgentMercury/Architect/medical3d/PLAN.md`. The genuine novelty boundary is narrow and
+worth stating plainly: single-projection→3D is solved for *X-ray* projections and
+text→3D for *clean clinical reports* — nobody lifts a rendered publication slice, which
+is adjacent-but-new, and more ill-posed than either.
+
+## The honesty layer, once it had numbers in it (2026-07-27)
+
+The instrument I wanted most was the cheap one: reproject the lifted volume back onto
+the figure it came from and check they agree. It is the only consistency check a real
+published figure can support — no ground truth, no held-out slices — and it is
+genuinely necessary, because a lift that has drifted off its own input is wrong without
+further argument. It is also, once you measure it, **almost powerless**, and measuring
+that is worth more than the check.
+
+Every lift anyone would actually ship writes the measured slice back into the volume,
+so it reproduces the input **exactly** — residual 0. Vacuous by construction, for the
+whole family. To find out whether the residual carries *any* signal I built the control
+the check deserves: the same population prior with the measured slice deliberately not
+written back, a volume that ignored its own input entirely. And to make a raw error
+readable — 0.0148 is small compared to *what*? — I reprojected each lift against a
+figure from a different case, so "wrong" has a scale. On that scale, 0 means reproduces
+its own input and 1 means no better than an unrelated image, the control lands at
+**0.161**. A contrast-matched prior already resembles any thorax slice; ignoring the
+input completely buys you 16 % of the way to nonsense. That is the entire dynamic range
+of the check the field reaches for first.
+
+Which is exactly the failure the 2021 theorem predicts, now with a number on it:
+reprojection probes the measurement component, and every invention lives in the null
+space where it cannot look. The dissociation is clean on the same three volumes. The
+population-prior lift **erased the tumour** off-plane and passed reprojection at 0. The
+null-baseline lift **smeared it** through every slice and passed reprojection at 0. Only
+the multi-angle re-slice separated them from the truth — consistency 0.00 and 0.14
+against 0.72 — and only a projection through an axis the input never constrained showed
+the two lifts differ at all, by 19× (0.152 vs 0.008). *The check that is available is
+blind to the thing that matters; the check that catches it needs angles the figure never
+gave you.* Both now sit in the viewer side by side, which is the honest way to ship them.
+
+Then the pencil-replacement, measured. I put a served open-weights vision-language model
+at the grounder seam and scored it against ground truth on 58 figures rendered from
+known volumes — a planted nodule at 24 positions across both lungs plus real LIDC
+slices, each rendered twice, with an author's arrow and plain. The first run said "mIoU
+0.156" and I could not tell you whether that beat a coin flip. So I split the number:
+IoU fuses **localization** (is the predicted centre on the finding) with **scale** (is
+the box the right size), and without a floor neither is readable. Against chance — a
+correctly-sized box dropped at random — the model is **34× better** at pointing, so it
+is doing something real. It also puts its centre **0.78 lesion-diameters** off the
+finding and hits IoU 0.5 on 3 % of cases. It finds the *neighbourhood*, not the finding:
+a weak hypothesis to check against the source panel, which is what I said grounding
+would be, now with the gate failing on the record rather than in a footnote. Upsampling
+the figure 4× does not fix it (pointing 0.31 → 0.21), so this is a capability limit, not
+a resolution artifact — though it does fix the *box size*, which is precisely why the
+two abilities had to be scored apart.
+
+The decomposition also caught me. My own arrow-following baseline was using one image
+fraction for two unrelated quantities — how far past the arrowhead the finding sits, and
+how big the region around it should be. On a 512-pixel clinical slice that offset
+overshot the nodule completely, and its localization on real LIDC data was **zero**.
+Keyed to the arrow's own extent and to the anatomy in millimetres instead, the same
+baseline goes to perfect pointing and its LIDC overlap sextuples (0.052 → 0.306). A
+metric that only reports one fused number cannot tell you which half is broken, and for
+two weeks it didn't.
+
+One last thing the survey settled, and it is a licensing result, not a technical one.
+Every radiology-specific grounder worth trying has public weights and **not one is
+release-compatible**: the phrase-grounding models are non-commercial, the segmentation
+foundation model is share-alike copyleft. Under the permissive path this project is
+committed to, that leaves the generic vision-language model above as the *only* grounder
+that can actually ship — which is why its 0.31 is the number that matters rather than a
+better one obtainable internally. The lift seam got the opposite answer:
+[DVG-Diffusion](https://arxiv.org/abs/2503.17804), a dual-view X-ray→CT diffusion
+reconstructor trained on LIDC-IDRI, is on the Hub under Apache-2.0, 3.8 GB — the same
+volumes this repo already ingests. So the trained prior I assumed was out of reach is a
+download away — and since it consumes X-ray *projections*, and the
+pipeline already renders Beer–Lambert line integrals, it can be fed the input it was
+trained for while the published-cross-sectional-figure case stays the harder cousin it
+has always been. That is the next thing to build, and the first one where the
+lesion-preservation FROC this note has been asking for since July will mean anything.
 
 Note-to-self: this is the same 2D→3D lift the radiologist already does by hand, now
 done by a prior — powerful and dangerous for exactly the same reason. His pencil
