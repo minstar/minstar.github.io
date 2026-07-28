@@ -298,6 +298,96 @@ trained for while the published-cross-sectional-figure case stays the harder cou
 has always been. That is the next thing to build, and the first one where the
 lesion-preservation FROC this note has been asking for since July will mean anything.
 
+## The trained prior erases a three-centimetre tumour (2026-07-28)
+
+The reconstructor is in. Two chest radiographs go into a diffusion model trained on
+LIDC-IDRI, a 128³ volume comes out in two and a half seconds, and by every structural
+measure it is the right patient: body-outline Dice **0.912**, smoothed correlation 0.810
+against 0.18 for the same reconstruction compared to a laterally shifted truth. It beats the
+single-slice lifts and it beats a no-prior linear back-projection, which is the
+comparison that actually asks whether the *learning* buys anything rather than the extra
+view. Then I planted nodules of known size in the original 0.88 mm scan, carried them
+through the identical path, and asked a matched-filter observer whether they were still
+there.
+
+| diameter | signal it puts in the radiographs | detectability retained |
+|---:|---:|---:|
+| 10 mm | 1.0 % | **−0.23** |
+| 16 mm | 2.2 % | **−0.12** |
+| 24 mm | 3.2 % | **−0.10** |
+| 32 mm | 4.0 % | **0.00** |
+
+Nothing survives. Not the 10 mm nodule, and not one three centimetres across that no
+radiologist would miss on the source CT. The same volume that scores 0.91 on body outline
+retains zero of the lesion's detectability — which is the sentence this note opened with
+in July, now with a trained model, real clinical data, and a task metric instead of a
+pixel one behind it.
+
+The middle column is what makes that a finding rather than a bug in my harness, and it
+is the first thing I checked. It is the peak change each planted nodule makes in a
+radiograph, as a fraction of that view's dynamic range, and it climbs monotonically with
+diameter: the information genuinely *is* in the model's input, and the reconstruction is
+discarding it. It also sizes the problem honestly, which I find more useful than the
+indignation. Even a 32 mm mass perturbs the projection by four percent, and a hundred-step
+diffusion prior does not preserve a four-percent perturbation of its conditioning. The
+prior is not malfunctioning. It is doing what a prior does when the measurement is weak,
+and a lesion is precisely the kind of small, high-contrast, low-prior-probability object
+that loses that argument.
+
+Getting an honest number out at all took four metrics, and three of them were wrong in
+the same direction — worth writing down, because each looked reasonable. Raw voxel
+correlation between reconstruction and truth is **0.10**, which reads as total failure
+and nearly made me discard a working model; it is dominated by CT noise, which is exactly
+the high-frequency content two views cannot determine and the prior must invent, so it
+scores the fabricated part and ignores the recovered one. Mean absolute error rewards a
+larger field of view, because a bigger cube is mostly air and air is easy. A lung mask
+built by filling the body silently empties when the torso touches the cube face, which is
+what happens at precisely the crops I was testing. What survived is body-restricted,
+smoothed, and referenced to a shift control so that "looks like a chest" earns nothing.
+
+That control then misbehaved three times as a *selector*, which is the part I'd want a
+reviewer to notice. It picked the largest field of view; it made the null-baseline lift
+look best because a repeated slice anti-correlates with a shifted chest; and — the one
+that matters — when I used it to settle the model's unstated axis convention by sweeping
+all forty-eight orientations, its winner had determinant −1. A mirror. A mirrored volume
+passes every re-slice test and every reprojection test in this project, because it is
+perfectly self-consistent and merely wrong-handed, and a note about hallucination honesty
+shipping a chirality bug would be its own punchline. The criterion I'd already switched
+to for an unrelated reason is what caught it.
+
+Two more results from the honesty layer, both of which sharpened claims I had been making
+loosely. First, provenance: a projection reconstructor has no measured plane at all — the
+data constrain line integrals, not voxels — so Bhadra and Anastasio's decomposition has to
+be re-derived against the actual forward operator. Two 128×128 detectors constrain at most
+2·128²/128³ of the volume, so **every** voxel is at least 98.4 % null-space by rank alone,
+and the 16.5 % that no ray reaches is *provably* invented. That is a certificate, not an
+estimate, and it is one-sided on purpose: zero ray support proves a voxel is unmeasured
+and nonzero support proves nothing.
+
+Second, and this one surprised me: in that certified-unmeasured shell the generative
+ensemble's disagreement is **exactly zero**. Not small — zero, with none of the most
+disagreeing voxels anywhere inside it. Ensemble variance is the standard empirical stand-in
+for null-space uncertainty, and here it is blind to the region that is provably null-space,
+because the prior fills that shell with air identically every time. On this case the truth
+is air there too, so the invention is correct and unfalsifiable, and I say so rather than
+claim a scandal. But the sharper statement holds: **provably-unmeasured is not
+visibly-uncertain.** An uncertainty map driven by ensemble spread alone paints the certified
+null space confident. That is a true statement about the model and no statement whatsoever
+about whether it is right, which is why both signals now ship side by side.
+
+The reprojection residual, finally, is no longer vacuous. Every lift that pastes its input
+back reproduces it at exactly zero, so the check said nothing about them; the trained
+reconstruction lands at 0.110 on the same scale, against 0.161 for a control that ignored
+its input entirely. It has a working range now — and remains the weakest test available,
+since the null space is by definition what those two rays cannot see.
+
+The frame I keep coming back to is the arithmetic one. One published cross-sectional
+figure determines 0.78 % of a 128³ volume. Two radiographs determine 1.56 %. Every method
+in this note, including the trained one, is filling in more than ninety-eight percent from
+a prior, and the fidelity numbers describe how *plausibly* it fills it, never how
+correctly. The single-figure path — the one the redefinition is actually about — is the
+harder cousin of the case measured here, and this is its optimistic bound.
+
 Note-to-self: this is the same 2D→3D lift the radiologist already does by hand, now
 done by a prior — powerful and dangerous for exactly the same reason. His pencil
 contour can be wrong too, but a smooth, confident, GPU-rendered surface *looks*
