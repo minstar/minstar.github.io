@@ -283,12 +283,20 @@ metric that only reports one fused number cannot tell you which half is broken, 
 two weeks it didn't.
 
 One last thing the survey settled, and it is a licensing result, not a technical one.
-Every radiology-specific grounder worth trying has public weights and **not one is
-release-compatible**: the phrase-grounding models are non-commercial, the segmentation
-foundation model is share-alike copyleft. Under the permissive path this project is
-committed to, that leaves the generic vision-language model above as the *only* grounder
-that can actually ship — which is why its 0.31 is the number that matters rather than a
-better one obtainable internally. The lift seam got the opposite answer:
+Every radiology-specific grounder worth trying has public weights, and the ones I checked
+were non-commercial or share-alike copyleft — which under the permissive path this project
+is committed to would leave the generic vision-language model above as the only grounder
+that could ship. *(**Correction, 2026-07-29:** that survey was not thorough enough, and the
+conclusion was wrong. Microsoft's BioViL-T and BioViL are **MIT**-licensed, ship real
+weights, and produce the same phrase→pixel similarity map; MedSAM v1 is **Apache-2.0** —
+only MedSAM**2** is share-alike. So a permissive grounder does exist. The caveat that
+replaces the old one is subtler and sits in the model card rather than the licence:
+BioViL-T states that "**any** deployed use case of the model — commercial or otherwise —
+is currently out of scope," and that it is intended solely for research and
+reproducibility. Permissive licence, author-restricted scope. That is a category my
+release rule didn't have, and it is a judgement call rather than a technical one. Measuring
+it is now the next experiment; the 0.31 stands as the generic model's number, not as
+"the best available".)* The lift seam got the opposite answer:
 [DVG-Diffusion](https://arxiv.org/abs/2503.17804), a dual-view X-ray→CT diffusion
 reconstructor trained on LIDC-IDRI, is on the Hub under Apache-2.0, 3.8 GB — the same
 volumes this repo already ingests. So the trained prior I assumed was out of reach is a
@@ -310,18 +318,32 @@ view. Then I planted nodules of known size in the original 0.88 mm scan, carried
 through the identical path, and asked a matched-filter observer whether they were still
 there.
 
-| diameter | signal it puts in the radiographs | detectability retained |
-|---:|---:|---:|
-| 10 mm | 1.0 % | **−0.23** |
-| 16 mm | 2.2 % | **−0.12** |
-| 24 mm | 3.2 % | **−0.10** |
-| 32 mm | 4.0 % | **0.00** |
+| diameter | density | signal it puts in the radiographs | truth's own d′ | detectability retained |
+|---:|---:|---:|---:|---:|
+| 10 mm | 60 HU | 1.0 % | 0.9 | **−0.22** |
+| 10 mm | 700 HU | 2.5 % | **2.8** | **−0.08** |
+| 16 mm | 60 HU | 2.2 % | 1.0 | **−0.13** |
+| 16 mm | 700 HU | 4.3 % | **3.0** | **−0.03** |
+| 32 mm | 60 HU | 4.0 % | 1.0 | **0.00** |
+| 32 mm | 700 HU | 8.5 % | **3.0** | **0.07** |
 
 Nothing survives. Not the 10 mm nodule, and not one three centimetres across that no
 radiologist would miss on the source CT. The same volume that scores 0.91 on body outline
-retains zero of the lesion's detectability — which is the sentence this note opened with
-in July, now with a trained model, real clinical data, and a task metric instead of a
-pixel one behind it.
+retains essentially none of the lesion's detectability — which is the sentence this note
+opened with in July, now with a trained model, real clinical data, and a task metric
+instead of a pixel one behind it.
+
+The density column exists because my first pass didn't have it, and shouldn't have shipped
+without it. I fixed the nodule at 60 HU — a soft-tissue nodule — and there the *ground
+truth's own* detectability is only d′ ≈ 1, right at the observer's threshold, so "retained
+≈ 0" was a ratio of two small numbers and the claim was really resting on contrast alone.
+Sweeping up to 700 HU, a calcified granuloma and just as clinical, puts the reference
+unmistakably clear of threshold. The truth's d′ then scales exactly as it should, 0.9 → 2.8
+and 1.0 → 3.0, which is how you know the observer is working. **The reconstruction's d′
+does not scale at all.** It stays pinned near zero at every density. A three-centimetre
+calcified mass that perturbs the radiograph by eight and a half percent and is
+unmistakable in the source scan comes back with seven percent of its detectability. The
+conclusion held the harder test, and now rests on a reference that deserves the weight.
 
 The middle column is what makes that a finding rather than a bug in my harness, and it
 is the first thing I checked. It is the peak change each planted nodule makes in a
