@@ -8,6 +8,164 @@ my research notes above. Titles are toggles.
 
 
 <details>
+<summary><strong>Qwen3.8-Max: A New Bar for Coding and Cowork</strong> · Qwen Team (Alibaba), August 2026</summary>
+
+*Official release post (August 3, 2026) for Qwen3.8-Max, the new Qwen flagship — "2.4T parameters
+(95B active)" on the Qwen3.5 architectural foundation, text+image input with a 1M-token context
+window declared in the post's integration configs, and the first Qwen-Max-class model slated for
+open weights ("next week" on Hugging Face/ModelScope). The headline claim is end-to-end completion
+of long-horizon real work — multi-day autonomous coding, professional workflows, thousand-turn
+tasks — attributed to RL over jointly scaled real environments with a "Universal Reward System" as
+the single reward source; the launch table posts Terminal-Bench 2.1 86.6, PaperBench 93.0,
+SWE-bench Pro 67.7, and Toolathlon Verified 72.5 against Opus 4.8 / Fable 5 / GPT-5.6 Sol (max) /
+Qwen3.7-Max baselines.*
+
+**From the report**
+
+> "Built upon the architectural foundation of Qwen 3.5, Qwen 3.8-Max scales to 2.4 trillion parameters" — the spec line reads "2.4T parameters (95B active)" — and "this also marks the first time we will open-source the weights of a Qwen-Max-class model," with weights due on Hugging Face/ModelScope "next week." — §Intro, §Build with Qwen3.8
+>
+> The RL reward source is "a Universal Reward System that internalizes heterogeneous verification — spanning execution-based checking, rubric-conditioned adjudication over text and rendered visual output, and agentic inspection — under automatically scalable rubrics," unified "within one reward system… eliminating the inconsistency inherent in maintaining task-specific verifiers." — §Work · Scaling Real-World RL Systems
+>
+> Environments scale on three decoupled axes — Task (single-task → multi-task → multi-day), Workspace (multi-file → hierarchical → complex heterogeneous folders), Harness (category/version/skills) — so "environment growth compounds combinatorially," with an online data balancer that shapes every batch's task/difficulty/workspace/harness distribution, "suppressing inter-batch gradient variance." Fig 1 plots a score index over 10+ benchmarks against RL-environment count: 0.474 SFT baseline → 0.725 best checkpoint at 4,000 environments — declining to 0.689 at 5,000. — §Work, Fig 1
+>
+> Coding headline rows: Terminal-Bench 2.1 86.6 (Claude Code harness, avg@10, 5-hour timeout, max_tokens=131,072; GPT-5.6 Sol posts 88.8), PaperBench 93.0 (BasicAgent under Code-Dev mode, judged by Claude Opus 4.6, averaged over 3 runs of max 12 h), SWE-bench Pro 67.7 (Claude Code, temp 1.0 / top_p 0.95 / 256K context; Fable 5 posts 80.0) — the SWE-bench Pro footnote adding "problematic tasks corrected and all baselines evaluated on the refined benchmark." — §Full Benchmark Table, notes 2/3/8
+>
+> The agentic rows are mixed and the footnotes admit asymmetries: Toolathlon Verified Pass@1 72.5 trails Fable 5's 77.9 and Opus 4.8's 76.2; WideSearch 81.9 average item-F1 over four runs uses "the Claude Code harness for external models and the Qwen-Agent harness for ours"; and note 1 states "Fable5 results may involve fallbacks." — §Full Benchmark Table, notes 1/17
+>
+> Long-horizon chip-design case: one continuous autonomous run of ~500 turns, 71 evaluations, and 13 milestones took a GCD/RSA accelerator from 8,298 to 678 gates ("leading all evaluated models") — the largest single step at Turn 22 (a 16-bit modulo divider replaced with iterative shift-subtract, −6,288 gates), module-fusion structural work still landing at Turns 170–252 — with OpenROAD place-and-route shrinking the die from 106×106 to 46×46 µm² (81% area reduction) and closing timing at 500 MHz. — §Long-Horizon Task
+>
+> E-Commerce Bench, a 365-day operation simulation on desensitized Taobao/Tmall data (12 store types, ~600 suppliers with 152 covertly embedded fraudulent merchants, 7,000 products), turned ¥100,000 seed capital into a ¥416,252 final balance (4.16×) across 2,000+ interaction rounds — 38% above second-place GLM 5.2 and a 152% improvement over Qwen3.7-Max. — §Long-Horizon Task · Continuous Learning
+>
+> RecreationBench is "an internal long-horizon application-recreation benchmark" across five platforms (Ubuntu, macOS, Windows, Android, web) in which the model sees a running app only as a black box — no source code, no internet — and rebuilds it from scratch; the post's own table scores Qwen3.8-Max 51.7, second to Fable 5's 56.1 on Qwen's own benchmark. — §Multimodal Agents, Table 2 note 10
+
+**My read**
+- *What I'd look at:* the Universal Reward System paragraph read against the post's own footnotes. One reward stack spanning execution checks, rubric-conditioned adjudication over rendered output, and agentic inspection is the verifier unification everyone wants — but the NL2Repo-Bench footnote ("to prevent reward hacking, we disable Bash commands that attempt to access the specific repository, such as pip download, pip install, and git clone") concedes the reward surface is attackable, and the post never says how that same surface is defended during RL rather than at eval time. Then Fig 1, whose x-axis is environment count, not training steps: 0.474 → 0.725 at 4,000 environments then down to 0.689 at 5,000 is the first public curve I know of that treats environment diversity as the scaling axis, and the peak-then-decline plus the batch balancer reads like direct evidence that raw environment count stops paying without batch-distribution control. And the chip-design milestone table is the best public anatomy of a ~500-turn run in any launch post: over 80% of the total gate reduction lands at Turn 22, yet module-fusion rewrites still land at Turns 170–252 — the post's own claim of "major structural breakthroughs even hundreds of turns into a run," and a concrete counterexample to the assumption that long runs only harvest early gains. Throughout, read the footnotes as carefully as the numbers: harness asymmetry on WideSearch, per-row external judges, corrected task sets — and their own model placing second on their own RecreationBench, an admission that raises my trust in the rest of the table.
+- *Where it meets my notes:* **AgentPlanet** — the Universal Reward System is the industrial version of my checklist-of-deterministic-gates-as-reward for world-building: both replace per-task verifiers with one scalable reward source over synthesized environments, and the pip/git-clone lockdown against reward hacking is exactly the reward-channel-integrity failure my gates are designed around. **Over-reflection** — their long-horizon loops earn extra turns by consuming fresh evidence each iteration (cocotb simulations, OpenROAD layouts, rendered UI), the grounded opposite of the ~63% confirm-then-keep-searching default I measured across 23,110 search trajectories; internalizing verification-against-output into the reward is a reward-side route to the state-conditioned stop/pivot behavior I train explicitly. **Inventing the z-axis** — a showcase-level link: the rehabilitation-therapist demo turns a 2D paper assessment form into freely rotatable 3D anatomy with layer-by-layer overlays, literally inventing the z-axis from 2D with no honesty test mentioned — precisely what my oblique re-slice check would probe. **The rollouts we throw away (FlashSAC)** (stretch) — their trajectories cost 125 hours or 500 turns apiece, the extreme end of the expensive-rollout regime my replay-buffer port targets, yet the post is silent on whether any rollout is ever reused off-policy.
+- *Worth stealing / watching:* the online data balancer — shape every RL batch to hold a fixed joint distribution over task/difficulty/workspace/harness so inter-batch gradient variance stays down; for search-agent RL the axes become benchmark family, difficulty, and tool surface. And reproduce Fig 1 on my own environment-scaling line — aggregate score versus number of RL environments with an SFT-baseline floor — because a 0.725 peak at 4,000 environments sliding to 0.689 at 5,000 implies an environment-count optimum worth locating before paying to synthesize more.
+
+[Source (Alibaba Cloud blog)](https://www.alibabacloud.com/blog/qwen3-8-max-a-new-bar-for-coding-and-cowork_603421)
+
+</details>
+
+<details>
+<summary><strong>Harness-1: Reinforcement Learning for Search Agents with State-Externalizing Harnesses</strong> · UIUC (+ UC Berkeley / Chroma), June 2026</summary>
+
+*A 63-page arXiv preprint (v1 June 1, 2026) introducing Harness-1, a 20B retrieval subagent — LoRA
+on gpt-oss-20b — trained with SFT plus on-policy CISPO RL inside a stateful search harness that
+moves working memory (candidate pool, importance-tagged curated set, evidence graph, verification
+records, compressed and deduplicated observations, budget-aware rendering) to the environment side,
+leaving the policy only the semantic decisions: what to search, what to keep, what to verify, when
+to stop. Across eight retrieval benchmarks spanning web, finance, patents, and multi-hop QA it
+reports 0.730 average curated recall, +11.4 points over the next strongest open search subagent,
+with 2.2× larger gains on four held-out transfer benchmarks; code, harness, data pipeline, and
+recipe are slated for release.*
+
+**From the report**
+
+> Core principle, "stateful cognitive offloading": the policy makes semantic decisions (what to search, which documents to keep, what to verify, when to stop) while the harness maintains the recoverable state s_t = (P_t candidate pool, C_t/I_t importance-tagged curated set capped at 30 with lowest-importance eviction, D_t full-text store, G_t evidence graph, V_t verification records, H_t search history, B_t budget-safe renderer). — §1, §2 Table 1
+>
+> Training recipe: SFT is 899 filtered teacher trajectories (GPT-5.4 run live inside the identical harness, recall ≥ 0.10 gate) expanded to ~26K turn-level datums, LoRA rank 32 for 3 epochs; RL is on-policy CISPO (clip [0,5]), 128 queries × 8 rollouts × 80 steps ≈ 82K rollouts, terminal-only reward, 40-turn cap, no KL anchor, on single-domain SEC data (3,453 queries). — §2.3, App D, App J
+>
+> Headline: 0.730 average curated recall across eight benchmarks, +11.4 points over the next strongest open subagent (Tongyi DeepResearch 30B), and higher average curated recall than GPT-5.4, Sonnet-4.6, Kimi-K2.5, and GPT-OSS-120B under this protocol — Opus-4.6 is the only frontier retriever ahead. — §3.2, Table 2, Fig 1
+>
+> Transfer: on the four benchmarks excluded from both SFT and RL (LongSealQA, Seal0QA, FRAMES, HotpotQA), gains over the closest open baseline are +32.8, +18.4, +7.2, +9.5 points (mean +17.0) versus mean +7.9 on the four source-family benchmarks — a 2.2× larger gain on held-out domains. — §3.2, Fig 3
+>
+> Inference-time ablation (same trained checkpoint, no retraining, 100 BrowseComp+ queries): disabling all harness mechanisms drops recall 0.584 → 0.513 (−12.2% relative); six of seven single ablations produce final-answer-recall drops of −3.9% to −7.9% (importance tags worst), with a consistent behavioral signature — search_corpus share rises 3–7 points while read_document and verify drop 2–6×. — Table 3, App M
+>
+> Harness-as-confound control: the same frozen GPT-5.4 with no RL improves monotonically as the harness gets richer — curated recall 0.511 (naive search-and-add) → 0.807 (Context-1 harness) → 0.849 (Harness-1 harness), a +4.2-point gain from the interface swap alone. — App P, Fig 7
+>
+> The reward separates discovery from selection: terminal reward = weighted F_β (β=2) + a trajectory-recall term + answer-evidence terms + a binary answer bonus + a tool-diversity bonus min(ν/ν₀, 1) − an answer-miss penalty (w_miss = 0.35, for evidence found but never promoted) − a turn penalty, with an empty curated set short-circuiting to −0.2; without the diversity bonus, tool diversity collapses ~6 → ~3.5 and curated recall plateaus at ~0.53 versus ~0.60 with it. — §2.3, Table 5, Fig 5
+>
+> Stated limitations: the scope is evidence-seeking retrieval with annotated relevant documents — breadth-oriented research, open-ended report generation, abstention under missing evidence, and adversarial web environments are out of scope; the evidence graph is a lightweight regex extractor rather than entity linking, verify is an LLM-proxy entailment check that can err on ambiguous or technical claims, and the sentence-BM25 compressor can drop discourse-dependent context. — App B
+
+**My read**
+- *What I'd look at:* Table 3 plus Appendix M, twice. The ablation signature — search share rising 3–7 points while read_document and verify collapse 2–6× when one state block is hidden — shows the trained policy conditions its action distribution on the rendered state rather than merely losing information, and the paired-query protocol (queries the full system solves versus the ablated version fails, same 100 queries, no retraining) is the causal-attribution standard I want before crediting RL for any agent gain. Then Appendix P, the control most agent-RL papers omit: +4.2 recall to the same frozen model from swapping harnesses cleanly separates interface mass from policy mass — I'd run this same-model-different-harness sweep on my own scaffolds. And §2.3's reward is a worked example of separating discovery from selection: trajectory terms credit what was found, curated terms credit what was promoted, and w_miss = 0.35 explicitly punishes found-but-never-promoted evidence, with Fig 5 showing the no-diversity-bonus run collapsing to fan-out-search-only at ~0.53 recall. The claim to stress-test is data scale: 899 SFT trajectories plus single-domain RL, yet 2.2× larger gains on held-out domains — the argument being that operations over explicit search state transfer where domain patterns stored in weights do not.
+- *Where it meets my notes:* **Over-reflection** — the verification cache V_t with the verify-before-promote norm plus the answer-miss penalty is an environment-side fix for the same failure I measured as confirm-then-keep-searching (~63% of the 23,110 trajectories I audited): externalize "what has been checked" so stop/promote decisions read state instead of re-deriving it, and their M.2 description of an ablated policy that "keeps searching but cannot prioritize what it sees" is that failure reproduced by deleting the state. **The rollouts we throw away (FlashSAC)** — a complementary lever on the same expensive-rollout problem: where I proposed reusing rollouts off-policy (UTD 2/1024 plus a replay buffer), Harness-1 stays on-policy but shrinks what RL must learn by offloading bookkeeping, getting away with ~82K terminal-reward-only rollouts on one domain; the levers compose, since replay would operate over harness-state trajectories. **AgentPlanet** — the harness's deterministic mechanisms (auto-seeding, importance eviction, MinHash dedup, programmatic nudges, the reward floor and empty-set short-circuit) are a checklist of deterministic gates shaping the reward channel, and Fig 5's collapse to search-only without the diversity bonus is a clean anti-Goodhart data point for the reward-channel-integrity framing. **Post-cutoff distillation** (a stretch) — their one-renderer discipline (App G: the identical programmatic state rendering serves teacher generation, SFT replay, RL, and inference) is the interface-level version of the note's requirement that knowledge be handed over in exactly the interface the student will act in.
+- *Worth stealing / watching:* the inference-time single-mechanism ablation plus paired-query error analysis, as a cheap causal audit for any scaffold change — no retraining, 100 queries. The open question the paper leaves: the reward requires annotated relevant/answer documents and RL stays single-domain, so what replaces qrels-based curated-recall reward on tasks without annotated evidence — their own out-of-scope list (report generation, abstention) — is precisely the unhackable-reward gap.
+
+[Source (arXiv 2606.02373)](https://arxiv.org/abs/2606.02373)
+
+</details>
+
+<details>
+<summary><strong>AgentV-RL: Scaling Reward Modeling with Agentic Verifier</strong> · Fudan (+ HUST / HKU / ByteDance Seed), April 2026</summary>
+
+*An ACL 2026 paper (arXiv v1 April 17, 2026; 16 authors) that recasts reward modeling as a
+multi-turn, tool-augmented agentic process instead of a single scalar-scoring pass: a forward agent
+traces the candidate solution from premises to conclusion while a backward agent re-derives it from
+the final answer back to the premises, both interleaving tool calls (Python execution; web search
+for QA) with reasoning. The verifier is built on Qwen3-4B via 15K-sample rejection SFT plus GRPO on
+50K samples, and the headline claim is that this 4B verifier beats the previous best outcome reward
+model on MATH500 Best-of-128 by 25.2 percentage points — including 70B-scale ORM baselines.*
+
+**From the report**
+
+> Bidirectional architecture: both agents follow a Plan–Validate–Verdict loop — the forward agent decomposes the solution into atomic sub-steps and checks each step's correctness and logical sufficiency via Thought–Action–Observation cycles, while the backward agent "verifies the necessity of a solution by reasoning in reverse, from the final answer back to the problem statement"; the two verdicts are aggregated, and the Best-of-N score is the likelihood of the "True" token. — §3, Fig 2, App C.3
+>
+> Tool surface: the verifier invokes a Python interpreter for math/code, and on HotpotQA "verification is grounded by web-search-based retrieval" — the grounding tool is task-conditional, and averaged tool use stays at 1.6 calls per verification trajectory under a hard cap of three per rollout. — §3.2, App C.4–C.6, Table 5
+>
+> Training recipe: questions curated from Polaris, DeepScaleR-40K, and AReaL-boba-106k with k=8 sampled solutions each (all-correct and all-incorrect questions dropped); an LLM role-plays the forward/backward agents and only trajectories whose verdict matches ground truth are kept → 15K SFT samples with tool observations masked from the loss, then GRPO on 50K further samples with a binary ±1 verdict-correctness reward, zero-variance rollout groups filtered, and mixed sampling of the two roles. — §3.3, §4.1
+>
+> Headline: Agentic-Verifier-Qwen3-4B reaches 79.0% on MATH500 at Best-of-128, "surpassing the previous best outcome-level RM, Skywork-V2-Llama-8B, by a substantial margin of 25.2 percentage points" (53.8%), and beats INF-ORM-Llama3.1-70B despite 17.5× fewer parameters; its accuracy is monotone in N (73.8 → 76.2 → 79.0 across Bo32/64/128) while scalar ORMs flatline or degrade (54.4 → 55.2 → 53.8). — Table 1, §4.2
+>
+> Eval harness: all candidates in both Best-of-N and sequential refinement come from one fixed actor, Qwen2.5-7B-Instruct (temperature 1.0, top-k 50, max length 4096); 128 rollouts are sampled once per problem and the same candidate pool is reused across every verifier variant, isolating verifier comparisons from candidate-set variance. — App C.1
+>
+> Sequential test-time scaling: one turn of verifier critique plus actor refinement lifts MATH500 to 84.2% with a correction rate Δ↑ of 41.6% against a degradation rate Δ↓ of only 0.6% (Gaokao2023: 75.6%, 40.3% versus 1.8%), converging within 2–3 iterations. — Table 2, §4.2
+>
+> Cost accounting: the full Agentic Verifier averages 8,349 tokens, 11.3 rounds, 1.6 tool calls, and 323.4 s per verification versus the base model's 2,560 tokens / 119.0 s (single A100, vLLM, batch 128) — roughly 2.7× latency for the accuracy gains. — Table 5, §4.3.4
+>
+> Stated limitations: "the reliance on synthetic, tool-augmented data may not fully represent the variety of real-world reasoning problems"; "the multi-turn process increases computational cost, presenting challenges for real-time or resource-limited deployment"; and "the framework's performance is tied to the coverage and reliability of external tools, which can be a bottleneck for certain tasks." — §6
+
+**My read**
+- *What I'd look at:* Appendix C.1 first: they freeze one 128-rollout candidate pool per problem from a fixed actor and reuse it across every verifier variant, which removes candidate-set variance from the comparison entirely — the exact discipline that high-temperature single-rollout flip noise demands in search-agent evals. Then §3.3 for the reward economics: the RL reward is just ±1 on the final verdict, and tool use settles at 1.6 calls per trajectory under a hard cap of three (App C.4/C.5) — so the open emergence question is what keeps calls from collapsing to zero, not from exploding. Table 1's N-scaling asymmetry is the operational argument: the agentic verifier keeps improving from Bo32 to Bo128 while scalar ORMs saturate around 54 — read §4.2 for where discriminative reward models stop paying for extra rollouts, because Best-of-N selection quality is precisely what caps rejection-sampling data pipelines. And §3.2 plus App C.3 for the backward agent: it is answer-conditioned re-derivation (necessity), not another pass of step-checking (sufficiency), and aggregating two independent verdicts is the piece most self-verification loops lack. One scope fact to hold onto: GRPO here trains the verifier itself — the paper only ever evaluates it as a test-time selector/critic of a frozen actor, never as the reward signal for policy RL.
+- *Where it meets my notes:* **Over-reflection** — my taxonomy shows confirm-then-keep-searching (~63%) is the structural default of strong search agents; this paper externalizes the confirm step into a separate tool-grounded verifier with a hard binary verdict, and Table 2's 41.6% correction versus 0.6% degradation is exactly the asymmetry a state-conditioned stop/pivot signal needs — an external verdict as the stop condition instead of the policy's own reflection loop. **AgentPlanet** — my world-building reward is a checklist of deterministic gates, which is one-directional; their forward-sufficiency plus backward-necessity pairing is a concrete anti-Goodhart mechanism (the backward agent re-derives the premises from the claimed conclusion rather than re-scoring the same forward path) that I could add to reward-channel integrity checks on world-build outputs. **The rollouts we throw away (FlashSAC)** — their rejection-SFT keeps only verdict-matching trajectories from k=8 rollouts per question and discards the rest, the same thrown-away-rollout economics; Table 5's 323.4 s / 8,349 tokens per verification is a usable cost model for whether verifier-driven selection of expensive rollouts pays for itself (a stretch: their domain is math/code, not live search). **Post-cutoff distillation** (a stretch, but mechanically parallel) — both restrict the learning signal to a verifiable channel: their SFT masks tool observations from the loss and their RL reward fires only on verdict-versus-ground-truth match, the same shape as the note's per-token reward gated to post-cutoff knowledge — the shared trick for keeping imitation from rewarding recitation.
+- *Worth stealing / watching:* the frozen shared candidate-pool protocol — sample N rollouts once per problem and reuse the identical pool across every verifier/selector variant — directly applicable to Best-of-N and verifier comparisons on browsing benchmarks, where single-rollout flip noise otherwise swamps method deltas. The open question the paper leaves: the verifier is only ever a test-time selector, so whether a 1.6-tool-call, ~323 s/verification agentic verifier is affordable and hack-resistant as the in-loop reward for policy RL — the obvious next use — is untested, and their §6 tool-coverage caveat is exactly where that would break for open-web search tasks.
+
+[Source (arXiv 2604.16004)](https://arxiv.org/abs/2604.16004)
+
+</details>
+
+<details>
+<summary><strong>Gemini 3.6 Flash — Model Card</strong> · Google DeepMind, July 2026</summary>
+
+*Google's 7-page model card (published July 2026; the launch blog dates the release July 21, 2026)
+for Gemini 3.6 Flash, a natively multimodal reasoning model in the Gemini 3 series that discloses
+architecture, training data, and infrastructure by reference to the Gemini 3.5 Flash card it is
+based on. It positions 3.6 Flash as the "workhorse" successor — better coding, knowledge work, and
+multimodal performance with better token-efficiency than 3.5 Flash — at $1.50/$7.50 per 1M
+input/output tokens, with a 1M-token context window and 64K output. Headline results include
+OSWorld-Verified 83.0%, MLE-Bench 63.9%, and GDM-MRCR v2 (8-needle) 91.8% at 128k / 54.0% at 1M,
+plus a safety-results table of signed deltas versus 3.5 Flash and a Frontier Safety assessment run
+by proxy on Gemini 3.1 Pro.*
+
+**From the report**
+
+> "Gemini 3.6 Flash is our workhorse model that delivers better coding, knowledge work, and multimodal performance, while providing better token-efficiency than Gemini 3.5 Flash"; the dependency is stated flatly as "Gemini 3.6 Flash is based on Gemini 3.5 Flash." — §Model Information
+>
+> The training recipe is disclosed by reference: Architecture, Training Dataset, Hardware, and Software each repeat "Gemini 3.6 Flash is based on Gemini 3.5 Flash," and all five sections — including Training Data Processing — defer details to the Gemini 3.5 Flash model card. — §Architecture, §Model Data, §Implementation and Sustainability
+>
+> Long context, GDM-MRCR v2 (8-needle): 91.8% at 128k (average) versus 77.3% for Gemini 3.5 Flash, and 54.0% at 1M (pointwise) versus 26.6% (3.5 Flash) and 26.3% (3.1 Pro) — best of all six models listed on both rows. — §Evaluation, Results
+>
+> Agentic coding and computer-use rows: SWE-Bench Pro (Public) 58.7% (3.5 Flash 55.1%; best listed is Grok 4.5 at 64.7%), DeepSWE v1.1 long-horizon SWE 49% (versus 37%; GPT-5.6 Luna leads at 67%), Terminal-bench 2.1 78.0% on the Terminus-2 harness (Luna 84.7%), MLE-Bench 63.9% (versus 49.7%), and OSWorld-Verified 83.0% (best listed). — §Evaluation, Results
+>
+> Pricing sits inside the results table: $1.50 input / $7.50 output per 1M tokens — an output-price cut from 3.5 Flash's $9.00 — against GPT-5.6 Luna ($1.00/$6.00), Grok 4.5 ($2.00/$6.00), and Claude Sonnet 5 ($3.00/$15.00 full price, $2.00/$10.00 temporary discount). — §Evaluation, Results
+>
+> Automated safety deltas versus Gemini 3.5 Flash, in percentage points: Text-to-Text Safety −1.35 and Multilingual Safety −5.45 (improvements; lower is better), Image-to-Text 0, Tone −3.31 (a regression), Unjustified refusals +0.25 — with the warning that these use improved evaluations "and thus are not directly comparable with performance results found in previous Gemini model cards." — §Ethics and Content Safety
+>
+> Frontier Safety is assessed by proxy: Gemini 3.1 Pro ("the most generally capable model as of publication") reached no Critical Capability Levels, and since 3.6 Flash "excels at agents and coding" but shows no material capability increase over 3.1 Pro, it is judged unlikely to reach any CCL — except cyber, where prior Gemini 3 models hit the alert threshold, so additional testing confirmed 3.6 Flash remains below the cyber CCL. — §Frontier Safety Assessment
+>
+> Stated caveat: the knowledge cutoff is March 2026, but "users can expect updated information for some domains while in others they may experience the model's knowledge is limited to January 2025 (in line with the Gemini 3 Model Family)"; other known limitations include hallucinations and occasional slowness or timeout issues. — §Intended Usage and Limitations
+
+**My read**
+- *What I'd look at:* the results table, asking the question the card never answers. Efficiency is the headline — "better token-efficiency," an output-price cut from $9.00 to $7.50, and the launch blog's claims of a 17% output-token reduction (per Artificial Analysis) and "fewer reasoning steps and tool calls to accomplish multi-step workflows" — yet no tokens-per-task or tool-calls-per-task column sits next to any score, so the wasted-step claim is priced in dollars rather than measured in steps. The GDM-MRCR v2 8-needle pair is the row I'd actually reuse: 91.8% at 128k collapsing to 54.0% at 1M (versus its own base's 26.6%) quantifies how multi-needle retrieval degrades across exactly the context regime long browse trajectories occupy — noting it is Google's in-house benchmark and the competitor 1M cells are blank. And the safety table is a compact pattern for honest regression reporting: signed pp deltas versus the predecessor, a per-row better-direction annotation, and an explicit warning that improved graders make numbers non-comparable across cards — the same eval non-stationarity I budget for with repeat-rollout noise floors.
+- *Where it meets my notes:* **Over-reflection** — the card productizes exactly the waste I measured: "better token-efficiency," glossed by the blog as fewer reasoning steps and tool calls on multi-step workflows, is a trained-in property of a successor model rather than a prompt — consistent with my finding that confirm-then-keep-searching (~63% of the search trajectories I audited) is not promptable away and needs training-side fixes. **Post-cutoff distillation** — the card's own caveat (a March 2026 cutoff, yet in some domains "knowledge is limited to January 2025, in line with the Gemini 3 Model Family") is a production admission of domain-uneven staleness on a frozen base — precisely the non-uniform gap the note's token-gated post-cutoff reward is aimed at. **AgentPlanet** (a partial stretch) — the release machinery (child-safety launch thresholds, CCL checks, a cyber alert threshold that triggers extra testing) is a checklist of deterministic gates acting as the ship/no-ship function, structurally the same role my gate checklist plays as the reward for world-building, with the same anti-Goodhart burden landing on the gates themselves. **The energy floor of inference** (stretch) — the card treats tokens-emitted as the controllable cost variable while the per-token rate is fixed by the platform, mirroring the note's split between energy-per-token and the sustained-power floor that token-count reductions cannot touch.
+- *Worth stealing / watching:* the delta-versus-predecessor safety-table format — signed deltas, per-row direction annotation, and an explicit cross-version non-comparability note whenever graders change — ported to my own SFT version-history tables, where harness drift quietly breaks absolute-number comparisons. And the cheap, differentiating upgrade this card conspicuously lacks: a per-row token and tool-call column next to every agentic score.
+
+[Source (PDF)](https://storage.googleapis.com/deepmind-media/Model-Cards/Gemini-3-6-Flash-Model-Card.pdf)
+
+</details>
+
+<details>
 <summary><strong>System Card: Claude Opus 5</strong> · Anthropic, July 2026</summary>
 
 *A 194-page pre-deployment system card (dated July 24, 2026) for Claude Opus 5, a text-output
