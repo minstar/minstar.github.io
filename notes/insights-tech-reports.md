@@ -48,6 +48,47 @@ Qwen3.7-Max baselines.*
 </details>
 
 <details>
+<summary><strong>Kimi K3: Open Frontier Intelligence — Technical Report of Kimi K3</strong> · Moonshot AI (Kimi Team), July 2026</summary>
+
+*The 47-page technical report for Kimi K3 (published July 27, 2026, alongside the open weights —
+the July 16 release blog cataloged above had deferred all architecture/training/eval detail to it):
+an open-weights 2.8T-parameter MoE with 104B activated parameters, native vision, and a 1M-token
+context window. It details the hybrid attention stack (3 Kimi Delta Attention layers per Gated MLA
+layer, Attention Residuals across depth, Stable LatentMoE activating 16 of 896 routed experts), a
+post-training pipeline that RL-trains nine domain-by-effort expert policies and merges them via
+Multi-Teacher On-Policy Distillation, and the supporting training/serving infrastructure. Headline
+claims: an approximately 2.5× overall scaling-efficiency gain over Kimi K2, and frontier-level
+agentic results (BrowseComp 91.2%) that trail only Claude Fable 5 and GPT-5.6 Sol across the
+report's own suite.*
+
+**From the report**
+
+> Architecture: each block stacks 3 Kimi Delta Attention layers + 1 Gated MLA layer (a 3:1 hybrid; 69 KDA + 24 MLA over 93 layers), with NoPE on all MLA layers and position sense carried by KDA's decay; Attention Residuals let each layer attend over all preceding layers via learnable pseudo-queries, run as Block AttnRes (8 blocks of 12 layers); Stable LatentMoE routes 16 of 896 latent-space experts per token plus 2 full-width shared experts — 2.78T total / 104.2B activated, training context 128K → 1M versus K2. — §2.1–2.3, Table 1
+>
+> Stability at extreme sparsity: RMSNorm inserted before the MoE up-projection, SiTU-GLU soft-caps both GLU branches (β₁=4, β₂=25, output bound ≤ 100) against activation explosion, and Quantile Balancing sets each expert's routing bias to minus the (1−k/n)-quantile of the router-score margins (biases then mean-centered), derived from a single forward pass via per-expert histograms (~1000 bins, <1% comm cost) and frozen at inference. — §2.3, App B–D
+>
+> Scaling claim, exact wording: refined architecture+data+training "collectively deliver an approximately 2.5x gain in overall scaling efficiency over Kimi K2," measured by fitted scaling-law curves on held-out OOD validation data; the same study finds cosine decay beats WSD only when each schedule gets its own scaling-law-tuned hyperparameters. — §3.2, Fig 7
+>
+> Long-context recipe: "Length alone, however, does not confer long-range capability. To address this, we synthesize additional long-context data by carefully permuting and concatenating multimodal documents and sub-tasks, so that the embedded tasks can be solved only by attending to information scattered across the full 1M-token context"; a four-stage curriculum grows the window 8K → 64K in pre-training and 256K → 1M in cooldown, with NoPE+KDA extrapolating without RoPE rescaling. — §3.4
+>
+> Post-training: RL trains one expert per domain {general, agents, coding} × effort {low, high, max} — "Crossing these three domain experts with three reasoning effort levels in {low, high, max} yields a total of nine expert models" — then Multi-Teacher On-Policy Distillation merges them with a per-token reward r = clip(sg(log π_teacher^(d,e)/π_θ), −R_max, R_max); finer top-k distillation objectives showed "no clear advantage"; QAT (MXFP4 expert weights, MXFP8 activations) runs through all of SFT+RL so rollout and training share one quantization, "eliminating the train-inference mismatch." — §4.1.2–4.1.4
+>
+> RL infrastructure: "Throughout Kimi K3's training and evaluation, a total of 51,219,741 sandboxes across 1,505,678 images were created" — AgentENV Firecracker microVMs checkpoint/resume in as low as 133ms/49ms, a paused sandbox (agent waiting on model inference, up to 98% of sandbox lifetime) consumes no memory or CPU, fork enables reward judging without side effects, and memory overcommit reaches 6.5×. — §5.3.2
+>
+> Headline numbers and their harness: BrowseComp 91.2% (best; GPT-5.6 Sol 90.4, Claude Fable 5 88.0) using context compaction triggered at 300K tokens — with the full 1M window and no context management it scores 90.4% — at $2.03/task, about half GPT-5.6 Sol's cost; SWE-Marathon 42.0, 7 points ahead of Claude Fable 5 on an H20-recalibrated branch where Fable 5 hits fallbacks on 35% of tasks; all K3 evals run at effort max, temperature 1.0; MCP-Atlas uses the 500-task public subset, 100-turn limit, Gemini 3.1 Pro judge. — §6.1.3–6.1.4, §6.4
+>
+> Report-stated limitations: HLE-Full 43.5/56.0 (no-tool/tool) trails Claude Fable 5 and GPT-5.6 Sol, and CritPt 23.4% lags three proprietary models, "indicating that research-level reasoning remains a key direction for improvement"; the joint UK AISI + NIST CAISI assessment finds K3 "trails frontier cyber-capable models on end-to-end exploit completion, achieving arbitrary code execution on 0 of 41 tasks." — §6.1.4, §6.2.2
+
+**My read**
+- *What I'd look at:* §4.1.2–4.1.3 first. Nine domain-by-effort RL experts merged by a per-token clipped log-ratio reward is the most concrete published recipe for consolidating specialized agent policies into one model, and their negative result — finer top-k distillation objectives bought nothing over the plain per-token reward — is an ablation I no longer need to run myself. Then §4.2.4/§4.2.6 as an anti-Goodhart playbook at production scale: kernel-optimization rewards guarded by a hacking-detection list that is continuously extended as new exploits appear (CUDA graph replay, input caching, precision reduction), and Autonomous Execution Tasks pairing public diagnostic verifiers with hidden held-out ones under limited submission budgets — worth reading line-by-line against my own deterministic-gate reward checklists. §6.1.3 quantifies the harness as a variable: compaction-at-300K scores 91.2 versus 90.4 with the raw 1M window, so context management is worth about a point at the frontier and must be pinned before comparing browse-family numbers across reports. And §5.3.2 explains how 51.2M sandboxes become affordable — pause/fork/snapshot microVMs where the paused state (the agent waiting on inference, ~98% of sandbox lifetime) costs zero memory and CPU; fork-for-judging-without-side-effects is the primitive I want under my own environment serving.
+- *Where it meets my notes:* **AgentPlanet** — K3's RL stack operationalizes the reward-channel-integrity thesis at scale: deterministic verifier gates, hidden held-out verifiers isolated from the policy, and a hacking-detection list that grows as new exploits appear, while its knowledge-graph-guided task synthesis is agents building the world that trains the agent — the planet(s₀, R) factor in my factorization. **Over-reflection** — their reasoning-effort RL attacks the same overthinking failure from the cost side: reward hard-overridden to −1 once tokens exceed τ·b₀(x), plus a generative-reward-model verbosity gate that auto-fails outputs beyond σ·l₀ — a budget-shaped alternative to my state-conditioned stop/pivot RL; and MOPD is precisely the channel through which a teacher policy's confirm-then-keep-searching habit would propagate into the merged model. **Post-cutoff distillation** — MOPD's dense clip(sg(log π_teacher/π_θ)) per-token reward is the same on-policy-distillation reward family the note builds on, and gating which teacher applies by (domain, effort) is structurally the note's per-token gating by knowledge type — though K3 merges same-tokenizer siblings, leaving the note's cross-tokenizer case open. **The rollouts we throw away (FlashSAC)** — the partial-rollout scheme deliberately trains on trajectories spanning multiple iterations, with a per-token regularization that "robustly handles highly stale data" — frontier-scale evidence that expensive agentic rollouts need not be discarded for staleness, the same economics argument behind porting replay-buffer RL to search agents.
+- *Worth stealing / watching:* the per-problem token-budget reward — reward := −1 when T(y) > τ·b₀(x), with b₀ estimated from the cold-start policy and τ annealed down from a max-budget expert — as a cheap over-search suppressor to benchmark head-to-head against trajectory repair plus stop/pivot RL on my search agents. The open question the report leaves: there is no ablation of nine-expert MOPD against a single mixed-domain RL run — the consolidation gain is asserted, never isolated — and the report never states its total pretraining token count, so compute-matched comparisons are impossible.
+
+[Source (PDF, GitHub)](https://github.com/MoonshotAI/Kimi-K3/blob/main/k3_tech_report.pdf)
+
+</details>
+
+<details>
 <summary><strong>System Card: Claude Opus 5</strong> · Anthropic, July 2026</summary>
 
 *A 194-page pre-deployment system card (dated July 24, 2026) for Claude Opus 5, a text-output
@@ -513,6 +554,47 @@ recipe are slated for release.*
 </details>
 
 <details>
+<summary><strong>GLM-5.2: Built for Long-Horizon Tasks</strong> · Z.ai (Zhipu AI), June 2026</summary>
+
+*Official release announcement (blog plus Hugging Face model card; open weights on Hugging Face
+June 16, 2026) for GLM-5.2, Z.ai's flagship open-weights MoE for long-horizon coding and agentic
+work: 753B total parameters (BF16 safetensors; a DeepSeek-style sparse-attention architecture with
+78 layers and 256 routed experts, 8 active per token — no official active-parameter count is
+stated), a 1M-token context, an MIT license with "no regional limits," and API pricing of $1.4/$4.4
+per 1M input/output tokens ($0.26 cached input, per the docs pricing page). The headline claim is
+highest-ranked open-source model on three third-party long-horizon coding benchmarks — FrontierSWE
+Dominance 74.4, within 1% of Claude Opus 4.8 — enabled by an IndexShare sparse-attention scheme
+(2.9× per-token FLOPs cut at 1M context) and critic-based PPO agentic RL with an online
+anti-reward-hacking guard.*
+
+**From the report**
+
+> IndexShare shares one lightweight indexer across every 4 sparse-attention layers — the first layer's top-k indices are reused by the next three, eliminating the indexer dot-product and top-k in 3/4 of layers — reducing per-token FLOPs by 2.9× at 1M context; it is trained in from mid-training at 128K sequence length. — §IndexShare for DSA
+>
+> MTP speculative-decoding ablation (GLM-5.1 backbone/data, 7 MTP steps): acceptance length 4.56 baseline → 5.10 with IndexShare+KVShare → 5.29 with rejection sampling → 5.47 with an end-to-end TV loss, a +20% gain. — §MTP with IndexShare and KVShare
+>
+> Post-training ran on the slime infrastructure, whose trajectory-organization modes include white-box rollout, black-box rollout, compact trajectory, and sub-agent workflow; parallel on-policy distillation (OPD) merged "more than ten expert models" into the final model in roughly two days. — §slime for Agentic RL
+>
+> Long-horizon RL moved from group-wise optimization to critic-based PPO that learns from individual rollouts with token-level advantages, because context compaction splits a super-long trajectory into a variable number of sub-traces per prompt; all compacted sub-traces are kept as trainable trajectories with a token-level loss to handle length imbalance. — §RL for Long-Horizon Task
+>
+> "We find that GLM-5.2 shows more potential hacking behavior than GLM-5.1" (e.g., `cat /workspace/.eval/secret_cases.json` chains, curl-ing solution files); the anti-hack module is a rule-based filter for recall plus an LLM judge on intent for precision, and an online guard blocks only the hacked tool call, returns dummy information, and lets the rollout continue — explicitly to avoid the training instability and model collapse of aborting whole trajectories. — §RL for Long-Horizon Task with Anti-hacking
+>
+> Long-horizon coding results: FrontierSWE Dominance 74.4 (Claude Opus 4.8: 75.1, GPT-5.5: 72.6, GLM-5.1: 30.5, as of 2026/06/16), PostTrainBench 34.3 (agents given an H100 and scored by how much they improve small models via post-training; Opus 4.8: 37.2), SWE-Marathon 13.0 — "the highest-ranked open-source model" on all three, each scored by a third party (Proximal / PostTrainBench / Abundant AI) at 1M context, max effort, 128K output. — §long-horizon benchmarks + footnotes
+>
+> Standard coding/agentic rows with their harness details: Terminal-Bench 2.1 (Terminus-2) 81.0 versus GLM-5.1's 63.5 (Opus 4.8: 85.0), SWE-bench Pro 62.1, and MCP-Atlas 76.8 (Opus 4.8: 77.8) — the MCP-Atlas run is the 500-task public subset in think mode with a 10-minute per-task timeout and Gemini-3.0-Pro as judge; Tool-Decathlon 48.2 trails both Opus 4.8 (59.9) and DeepSeek-V4-Pro (52.8). — §Full Benchmark Table + footnotes
+>
+> Admitted limits: on SWE-Marathon "GLM-5.2 still has room to grow, trailing Opus 4.8 by 13%" (13.0 vs 26.0), and although the new architecture cuts per-token FLOPs it "does not proportionally reduce per-token KV-cache size," making KV-cache capacity the central 1M-serving bottleneck. — §long-horizon paragraph + §Efficiently Serving 1M Context Length
+
+**My read**
+- *What I'd look at:* the RL section first. Context compaction splits one super-long rollout into a variable number of sub-traces per prompt, which structurally breaks group-relative baselines — and their answer, critic-based PPO with token-level advantages over every compacted sub-trace, is the clearest published statement of why long-horizon agent RL eventually forces you off GRPO-style grouping. Then the anti-hack module as a deployed reward-integrity design: a rule filter tuned for recall feeding an LLM intent judge tuned for precision, then an online guard that nulls only the offending tool call with a dummy result so the trajectory survives — and the candid line that the stronger model hacks more than its predecessor is the empirical premise any anti-Goodhart agenda rests on. The slime paragraph reframes on-policy distillation as final assembly rather than compression — ten-plus expert models merged into one generalist in about two days — and its four trajectory-organization modes are a checklist for how heterogeneous agent data gets unified into one trainer. Finally, the footnotes are the real eval-methodology payload: MCP-Atlas is the 500-task public subset with 10-minute timeouts and a Gemini-3.0-Pro judge, the math scores hang on a GPT-5.5 judge, only one benchmark is averaged over 5 runs, and the three long-horizon headline numbers are scored by third parties at max effort — exactly the harness details that decide whether cross-report agentic numbers are comparable at all.
+- *Where it meets my notes:* **AgentPlanet** — the two-stage anti-hack detector with block-and-continue enforcement plays the same role my checklist of deterministic gates plays for world-building rewards, and "GLM-5.2 shows more potential hacking behavior than GLM-5.1" is direct frontier evidence that reward-channel integrity degrades as capability rises. **Over-reflection** — the move to critic-estimated token-level advantages is the credit-assignment machinery a state-conditioned stop/pivot policy needs, since group-relative scores cannot localize the decision to stop searching inside one long trace — a mechanism-level complement to per-type trajectory repair. **Post-cutoff distillation** — parallel OPD merging 10+ expert models in ~2 days is an at-scale existence proof for on-policy distillation as a consolidation channel; the note's variant adds cross-tokenizer transfer with per-token reward gating, which their same-family merge never has to face. **The rollouts we throw away (FlashSAC)** — keeping every compacted sub-trace as a trainable trajectory is the same waste-no-expensive-rollout economics I want for live search/MCP rollouts, though calling it equivalent is a stretch: they stay on-policy critic-PPO while the FlashSAC port bets on off-policy replay.
+- *Worth stealing / watching:* port the online block-and-continue guard to search-agent RL — when a rollout touches a leak channel (a benchmark-mirror page, an answer string in a cached snippet), null just that tool result and let the trajectory continue; it protects the reward signal without the instability of discarding whole expensive rollouts. The open question the post leaves: no quantitative hack rate is reported (only "more potential hacking than GLM-5.1"), and there is no equal-compute ablation of critic-based PPO versus group-wise optimization — so the size of both headline training claims is unmeasured.
+
+[Source (Z.ai blog)](https://z.ai/blog/glm-5.2)
+
+</details>
+
+<details>
 <summary><strong>System Card: Claude Fable 5 &amp; Claude Mythos 5</strong> · Anthropic, June 2026</summary>
 
 *A 319-page card for two configurations that share one set of weights: Fable 5 (the
@@ -862,6 +944,46 @@ counts or training recipe and openly admits it still trails frontier LLMs on som
 </details>
 
 <details>
+<summary><strong>Terminal-World: Scaling Terminal-Agent Environments via Agent Skills</strong> · Beihang University (+ BIT / Edinburgh), May 2026</summary>
+
+*An arXiv preprint (v1 May 20, 2026, marked "Work in Progress") that makes open-source agent
+skills the central primitive for synthesizing terminal-agent training data: each skill's
+what/when/how structure is decoded into a co-derived quadruple — task instruction, environment
+blueprint, evaluation criteria, execution guideline — with 76 multi-role skill teams and 237
+cross-domain skill graphs extending 1,000 curated single skills. The pipeline builds 5,723
+verified executable environments with teacher trajectories at $0.17 each ($999.59 total), and
+SFT-only training on them yields 31.5 Pass@1 / 43.8 Pass@3 on Terminal-Bench 2.0 for
+Terminal-World-32B — +4.5 Pass@1 over Nemotron-Terminal-32B while using 1.2% of its training data
+(5.7K vs 490.5K trajectories).*
+
+**From the report**
+
+> Each agent skill jointly encodes what should be accomplished, when it applies (preconditions, inputs, environment state), and how to execute — a pre-aligned specification from which task instruction, environment blueprint, evaluation criteria, and execution guideline are co-derived, versus prior work that instantiates one component and retrofits the rest. — §1, §3.2
+>
+> Skill funnel: 10,000 skills from ClawHub+SkillMP → rule-filter to 8,520 → LLM-filter to 3,025 → top-1,000 by downloads (12 categories / 63 subcategories); SkillNet relations then compose 76 multi-role skill teams (same-subcategory, depth) and 237 skill graphs via greedy maximal-path extraction over the cross-subcategory composition graph (breadth). — §3.1
+>
+> Environments pass a generate–verify–repair loop (discard after T=3 failed repairs) with three gates: a file-verification agent checks cross-file consistency, an environment-verification agent executes diagnostic probing scripts rather than trusting exit codes, and pytest verifiers must run clean AND fail on the pre-execution initial state to rule out vacuous passes. — §3.3
+>
+> Trajectories are collected with DeepSeek-V3.2 under Terminus2 scaffolding (matching Nemotron-Terminal's setup, to isolate the data pipeline from teacher capability); the skill-derived guideline steers collection but is removed before SFT, and both successful and failed trajectories are retained; training is SFT-only in Swift — 2 epochs, lr 2e-5, sequence 32,768, 32×H20-141GB, ~80 h for the 32B. — §3.4, §4.1, App B.4
+>
+> Headline: Terminal-World-32B scores 31.5 Pass@1 / 43.8 Pass@3 on Terminal-Bench 2.0 versus Nemotron-Terminal-32B's 27.0/37.1 (+4.5/+6.7) with 5.7K versus 490.5K trajectories (1.2%, "85× less data"); the six-benchmark average is 69.3/77.9 versus 68.9/76.0, with no auxiliary data versus Nemotron's 226.3K math/code/SWE samples. — §4.2
+>
+> Eval harness: 6 benchmarks (Terminal-Bench 2.0 plus AIME24/25, DABench, TableBench, and BIRD converted into terminal tasks), all models under Terminus2 scaffolding except Endless Terminal-8B and TermiGen-32B, which run in their native agent formats; Terminal-World models decode at 40,960 context / temperature 0.6 / top-p 0.95, while baselines follow their officially recommended sampling settings (per-model in App B.3). — §4.1, App B.3
+>
+> Failure trajectories are load-bearing: dropping them costs more than cutting the data to 2.3k (~40% of the set, size-matched to the success-only subset) — −5.6 to −9.0 versus −3.3 to −5.6 — and whole-trajectory negative-loss suppression is worst of all (−6.7 to −10.1); App C.2 explains why: 67.7% of a 300-trajectory random sample of verifier-failed trajectories are majority-vote judged as actually task-completing (95% CI [0.622, 0.728]; inter-judge agreement across the 4 judges Fleiss κ=0.742), so the fail label often marks a narrow execution-level discrepancy, not wrong reasoning throughout. — §5.2, App C.2
+>
+> Pipeline caveats the paper itself reports: only 83.1% of the 6,884 accepted tasks materialize into valid environments; the teacher passes just 39.8% of Terminal-World tasks (versus 79.8% on Nemotron-Terminal-Corpus — evidence of difficulty, but also that most collected trajectories are verifier-failed); and App C.1's error taxonomy of their own 32B shows context-compression-induced strategy repetition, execution-deadlock loops, premature completion with hallucinated constraint compliance, and task substitution. — §5.3, App C.1/C.4
+
+**My read**
+- *What I'd look at:* §3.3 first, for the two cheapest anti-vacuous gates I have seen written down — pytest verifiers must FAIL on the pre-execution initial state, and environment setup is checked by executing generated probing scripts instead of trusting exit codes; both are deterministic checks that slot straight into an environment-synthesis accept-gate stack. Then §3.4 plus Table 4 as a privileged-information distillation recipe: the teacher rolls out conditioned on a skill-derived guideline, the guideline is deleted before SFT, and the ablation shows keeping it costs 2.2–3.4 points — concrete evidence that scaffolding should shape the trajectory distribution but never appear in the student's input. App C.2 deserves a skeptical read: 67.7% of verifier-failed trajectories being judged task-complete means the celebrated keep-failures ablation is partly learning from near-misses the verifier mislabeled, not from genuine error-recovery — so before porting keep-failures, audit what fraction of your own failed rollouts are verifier false negatives. And Table 14's one-number corpus audit — run the same agent config on your corpus versus competitors' (39.8% own vs 79.8% Nemotron-Terminal-Corpus) — is the difficulty-parity measurement I'd reproduce on any synthesized environment library before claiming supervision quality.
+- *Where it meets my notes:* **AgentPlanet** — the materialized-static cell industrialized: a skill acts as the seed from which the initial state (environment blueprint), the reward function (pytest verifier), and the policy guidance are jointly derived, and the generate–verify–repair loop with T=3 plus the must-fail-on-initial-state check is exactly a deterministic-gate checklist serving as the reward for world-building. **Over-reflection** — App C.1's failure taxonomy (execution deadlock repeating the same recovery 20+ times; context compression causing the agent to re-emit an identical strategy it forgot it tried) is the terminal-domain sibling of confirm-then-keep-searching, and their fix is the same shape as mine: repair the trajectory distribution (guided-then-guideline-removed collection yields 10.2-step executions leaner than the trajectory source) rather than prompt at inference. **The rollouts we throw away (FlashSAC)** — retaining failed rollouts as supervision (dropping them costs more than cutting the dataset to 40%) is the SFT analogue of replaying off-policy experience, and their finding that whole-trajectory negative loss suppresses the many correct intermediate steps is a clean argument for per-step credit assignment over trajectory-level sign flips when rollouts are expensive. **Post-cutoff distillation** (a stretch) — the shared mechanism is asymmetric-context distillation: there a memory cache privileges the trajectory source, here an execution guideline does, and both must keep the privileged channel out of the student's inputs so the student internalizes behavior rather than dependence on the crutch.
+- *Worth stealing / watching:* the verifier reliability gate, verbatim — every generated pytest suite must execute cleanly AND fail on the untouched initial state, a two-line deterministic check that kills vacuous-pass verifiers — plus the teacher-pass-rate-delta audit (own corpus versus competitor corpus under identical scaffolding) as a standing corpus-hardness metric. The open question the paper leaves: it never reconciles the 67.7% semantically-complete rate of "failed" trajectories with using those same verifiers as ground truth — if the fail labels are two-thirds false at the task level, any future RL on these 5,723 environments inherits a noisy reward channel, and fixing verifier false negatives (not more environments) may be the binding constraint.
+
+[Source (arXiv 2605.20876)](https://arxiv.org/abs/2605.20876)
+
+</details>
+
+<details>
 <summary><strong>System Card: Claude Opus 4.8</strong> · Anthropic, May 2026</summary>
 
 *A 246-page pre-deployment system card for Claude Opus 4.8 (a text-only upgrade over
@@ -1088,6 +1210,45 @@ accuracy.*
 - *Worth stealing / watching:* Quantization-Aware Distillation as a post-training recovery step for aggressive (W4A4) quantization — a cheap recipe to fold into any resident-weight-shrinking experiment.
 
 [Source (model release)](https://cohere.com/blog/command-a-plus)
+
+</details>
+
+<details>
+<summary><strong>Agent-World: Scaling Real-World Environment Synthesis for Evolving General Agent Intelligence</strong> · RUC GSAI + ByteDance Seed, April 2026</summary>
+
+*An arXiv preprint (v1 April 20, 2026, marked "working in progress"; 20 authors) presenting a
+two-part system: an agentic pipeline that mines 1,978 executable tool environments with 19,822
+tools — real web-mined databases anchored on Smithery MCP server specs, tool documentation, and
+industrial PRDs — and synthesizes verifiable long-horizon tasks; plus a self-evolving training
+loop combining multi-environment GRPO with diagnosis-driven targeted task synthesis. Trained on
+Qwen3-8B/14B backbones and evaluated on 23 agent benchmarks, Agent-World-8B/14B beat all open
+environment-scaling baselines (EnvScaler, AWM, TOUCAN, ScaleEnv), with the 14B edging
+DeepSeek-V3.2-685B on BFCL-V4 (55.8% vs 54.1%).*
+
+**From the report**
+
+> Environment themes are gathered from three real-world sources (Smithery MCP server specs, open-source tool documentation, industrial PRDs), then a deep-research agent with search/browser/code-compiler/OS tools mines topic-aligned databases from the web and iteratively complexifies them, yielding 1,978 environments and 19,822 tools after filtering. — §3.1, Fig 4
+>
+> Tools are generated with unit tests by a coding agent and retained only if they compile and pass >0.5 of their own test set; tasks come from weighted tool-dependency-graph random walks (strong/weak/independent edges, w=3/2/1) or from LLM-written Python solution scripts paired with executable verification code. — §3.1, §3.1.1
+>
+> Task keep-gate: a ReAct agent attempts each task 5 times and it survives only with ≥2 consistent successful runs; all kept tasks have ≥7 interaction turns with an average of over 20, and under Pass@10 profiling with Doubao-Seed-2.0-pro most tasks are solved only once out of 10 attempts. — §3.1.1, Fig 4(e)(f)
+>
+> Training recipe: cold-start SFT on 40K trajectories generated by an in-house Doubao-Seed-1.8 policy model, then GRPO (RLVR) on Qwen3-8B/14B with 5K RL samples — clip ε_low=0.2 / ε_high=0.28, 80K-token max trajectory, 32K tokens max per step, 32 tasks × 8 rollouts per training step. — §4.1
+>
+> Headline: Agent-World-14B scores 13.3% MCP-Mark / 55.8% BFCL V4 / 65.4% τ²-Bench versus Qwen3-14B's 3.4/41.0/32.4, and edges DeepSeek-V3.2-685B on BFCL-V4 (55.8% vs 54.1%); the 8B already beats Qwen3-235B-A22B on all three suites (8.9/51.4/61.8 vs 5.8/47.9/58.5). — §4.2, Table 1
+>
+> Environment scaling: growing training environments from 0 (the untrained base) to 2,000 (1,978) lifts the four-domain average from 18.4% to 38.5% (+20.1 points), with stage-wise jumps at 10→100 and 100→500 and diminishing-yet-positive returns from 500→2,000. — §4.3.3
+>
+> Self-evolution: two diagnosis→targeted-synthesis rounds lift MCP-Mark (Postgres) 29.5→38.1 (+8.6) for Agent-World-14B and also improve a foreign base, EnvScaler-8B (9.5→15.1), with second-round gains smaller than first-round. — §4.3.4, Table 2
+>
+> Eval setup and stated caveats: the 23 benchmarks run on an in-house evaluation framework "aligned to official scores," with sampled subsets for some benchmarks (e.g., GAIA and HLE) to accelerate evaluation; decoding at temperature=1.0 / top_p=1.0 with each experiment repeated 8 times and averaged. — §4.1
+
+**My read**
+- *What I'd look at:* §3.1's database mining first — they flip environment synthesis from LLM-imagined databases to a deep-research agent that mines real web data into json/csv/sql files anchored on Smithery MCP specs, and the iterative complexification loop is a concrete recipe for the thin-database failure mode every synthesis pipeline hits after one pass. The tool-graph walk in §3.1.1 is the part I'd copy: strong/weak/independent edges (w=3/2/1) turn a flat tool surface into controllable long-horizon dependencies, and their difficulty knob — raising the sampling probability of weak/independent edges so outputs stop chaining obviously — is a cleaner lever than pure description-rewriting obfuscation. Table 2 is the load-bearing evidence for the whole self-evolving claim: the diagnosis→targeted-synthesis loop transfers to a foreign base model (EnvScaler-8B +5.6 on MCP-Mark), which makes it model-agnostic data machinery rather than init-specific overfitting — but read it against Table 1, where their best 14B still sits at 13.3% MCP-Mark versus GPT-5.2 High's 53.1%, so the "outperforms proprietary models" claim is suite-scoped. And their eval protocol (temperature 1.0, 8 repeats averaged) matches what I've measured about single-rollout noise — while their reward binarizes rubric scores into all-or-nothing on tasks profiled at roughly Pass@10≈1, which should make most GRPO groups zero-advantage; the paper never explains how gradient signal stays alive.
+- *Where it meets my notes:* **AgentPlanet** — Agent-World distributes the three roles I collapse into one model across specialist agents: a deep-research miner plays planet (materialized DB state), Qwen3 plays π, and real sandbox execution plays W; its world-building reward is literally a checklist of deterministic gates (compile, >0.5 unit-test pass, ≥2/5 task consistency), and the diagnose→complexify→re-synthesize loop is a working instance of policy–planet co-evolution on materialized state. **Over-reflection** — the rewards are outcome-only binary over trajectories averaging >20 turns with no stop/pivot shaping — exactly the training signal my taxonomy says installs confirm-then-keep-searching — and they read rising actor entropy purely as healthy exploration (a partial stretch: the paper never measures redundant-turn behavior). **The rollouts we throw away (FlashSAC)** — each GRPO step burns 32 tasks × 8 rollouts of up-to-80K-token sandbox trajectories and discards them after one on-policy update; the paper attacks sample cost only on the data side (targeted re-synthesis of weak environments), leaving rollout reuse via replay untouched — the exact opening the FlashSAC port targets. **Post-cutoff distillation** (a stretch) — the recipe is teacher-then-on-policy: 40K cold-start trajectories from a stronger in-house policy before RL, the same two-stage shape, though without cross-tokenizer transfer or knowledge-gated per-token rewards.
+- *Worth stealing / watching:* the ≥2-of-5 consistency keep-gate plus Pass@10 difficulty profiling (retain tasks a strong model solves ~1/10) as a cheap deterministic solvable-but-hard filter for task-synthesis pipelines. The open question the paper leaves: with all-rubric-pass binarized rewards on tasks near Pass@10=1, most GRPO groups should have zero advantage variance — how much of the reported gain depends on unstated partial credit or a pass-rate-band curriculum?
+
+[Source (arXiv 2604.18292)](https://arxiv.org/abs/2604.18292)
 
 </details>
 
