@@ -8,6 +8,47 @@ my research notes above. Titles are toggles.
 
 
 <details>
+<summary><strong>Introducing Muse Code and Muse Spark 1.2</strong> · Meta Superintelligence Labs, August 2026</summary>
+
+*Official Meta announcement (August 5, 2026; published under the Meta AI Research brand with Meta
+Superintelligence Labs as the declared author) introducing Muse Code, a beta terminal coding agent
+built as a main agent loop plus persistent async background agents over an append-only local event
+log, and Muse Spark 1.2, a coding-focused update to the July 9 Muse Spark 1.1 (1,048,576-token
+context on the Meta Model API) that was co-trained with the Muse Code harness. Meta's charts report
+Terminal-Bench 2.1 82.9% (vs 76.2% for 1.1), DeepSWE v1.1 59.3% (vs 53.0%), and a chart-topping
+MCP Atlas 90.3%, alongside a "contributor" API tier at $0.10/$0.20 per M input/output tokens (vs
+$1.25/$4.25 standard) in exchange for permission to train future Meta models on prompts and
+completions; a linked evaluation-methodology note details harnesses, sandboxes, and attempt
+counts.*
+
+**From the report**
+
+> Muse Code runs "a simple agent loop plus a set of async background agents" that "remain active throughout each session, rather than being spawned for individual tasks," on top of a local event log where every model call, tool run, approval, and edit is appended, making the runtime "replay-exact and restart-safe." — §Muse Code
+>
+> "We significantly scaled up training compute on coding tasks while expanding training environment diversity," and the model was "extensively trained on long-horizon coding tasks, including whole-repository generation, large end-to-end projects, and auto-research," leveraging planning, goal conditioning, and context compaction. — §Muse Spark 1.2, §Long-Horizon
+>
+> "We co-trained Muse Spark 1.2 with Muse Code"; training "included rejection sampled harness trajectories and recipe optimizations for goals, compaction, and subagents, alongside the integration of the Muse Code toolset to maximize harness compatibility." — §Co-Training With Muse Code
+>
+> Self-improvement loop: "we used Muse Spark 1.1 to generate challenging coding environments and instruction-following templates," then the model "graded candidate solutions on how well they satisfied those requirements, producing a scalable training dataset for Muse Spark 1.2." — §Self-Improvement
+>
+> Terminal-Bench 2.1: Muse Spark 1.2 (in Muse Code) 82.9% versus Muse Spark 1.1 (in mini-swe-agent) 76.2%, behind chart-leader Opus 5 (max)+Claude Code at 86.7%; DeepSWE 1.1: 59.3% versus 53.0% (Opus 5 65.0%, GPT-5.6 Terra 64.8%); Meta Internal Coding Bench (440 tasks from real internal pull requests, internet disabled): 70.6% versus 68.3% (Opus 5 79.4%). — §Coding evaluation charts
+>
+> General agents: MCP Atlas 90.3%, top of Meta's chart (1.1 = 88.1%, Opus 5 xhigh = 85.8%; Scale AI's own harness over 1,000 human-authored tasks / 36 real MCP servers / 220 tools, pass = claim coverage ≥ 0.75), and GDPVal-AA v2 Elo 1631 versus 1371 for 1.1 (Opus 5 1852; human baseline anchored at 1,000, run by Artificial Analysis). — §General Agents charts; methodology PDF
+>
+> Eval setup: "each model is evaluated with its selected agent product" at "the maximum available reasoning strength" (xhigh for Muse Spark 1.2/1.1), each attempt in an isolated Daytona cloud sandbox graded by the benchmark's verifier, reported as "average task success rate (pass@1) across five attempts"; Terminal-Bench 2.1 = all 89 official tasks, DeepSWE v1.1 = 113 tasks across 91 repos in five languages with handwritten functional verifiers plus regression checks. — methodology PDF
+>
+> Self-stated caveats: the DeepSWE runs are "not harness-identical to the leaderboard" (the official leaderboard uses mini-swe-agent for every model), and third-party numbers are "best-effort" because the setup "may not be specifically tuned for proprietary third-party models" and "may not reflect these models' best performance." — methodology PDF
+
+**My read**
+- *What I'd look at:* §Self-Improvement first: predecessor-generated challenging environments plus template-conditioned grading is the minimal published environment-synthesis flywheel, and what it omits — any independent gate between generator and grader — is precisely where my synthesis pipelines insert deterministic checks, so I read it as a statement of what a frontier lab considers acceptable reward-channel hygiene. Then §Co-Training against the methodology PDF's harness table: 1.2 is scored inside Muse Code while 1.1 is scored inside mini-swe-agent, so the 82.9-vs-76.2 headline is a model+harness joint delta by construction — and "rejection sampled harness trajectories" with recipe optimizations for goals/compaction/subagents is the clearest public admission that the scaffold sits inside the training distribution rather than being an eval-time wrapper. The methodology PDF itself is the part worth keeping for eval craft: pass@1 averaged over five attempts, per-benchmark verifier mechanics (DeepSWE functional verifier plus regression checks on a pristine checkout; MCP Atlas claim-coverage ≥ 0.75), and two self-stated caveats about harness non-identity and untuned third-party setups. Two numbers to file: MCP Atlas 90.3% via Scale AI's own pipeline as a frontier reference on a benchmark I run, and the contributor tier as a live market price on agentic interaction data — a 12.5–21× discount for the data flywheel.
+- *Where it meets my notes:* **AgentPlanet** — the self-improvement loop is a two-of-three-roles instance of my factorization: Muse Spark 1.1 plays world-builder (generating challenging coding environments and templates) and the reward channel (grading candidate solutions), with no described deterministic-gate checklist between generator and grader — reward-channel integrity rests on the same model family being trained, which is the anti-Goodhart gap my gate design targets. **Over-reflection** — their fix for redundant exploration is architectural: persistent background agents that stay resident to "avoid redundant information gathering," plus goal conditioning and context compaction — attacking the same confirm-then-keep-searching default I measured at ~63% across the search trajectories I audited, but from the harness side rather than my policy-side per-type repair and state-conditioned stop/pivot RL. **The rollouts we throw away (FlashSAC)** (stretch) — "rejection sampled harness trajectories" means discarding losing rollouts from a harness whose long-horizon episodes run 1,000+ tool calls over up to 24 hours (kernel case study) — exactly the expensive-rollout economics where my note argues replay-buffer reuse should beat discard-heavy pipelines; the post gives no discard fraction and does not say whether off-policy reuse was tried.
+- *Worth stealing / watching:* the co-training move — put harness behaviors (compaction events, subagent handoffs, goal restatement) into the SFT distribution via rejection-sampled harness trajectories instead of treating the scaffold as fixed at eval time, and report model+harness as the joint unit, the way their charts pair each model with its selected agent product. The open question the post leaves: nothing is said to gate the self-improvement grader — no independent verifier, held-out check, or contamination control between 1.1-generated environments and the graded training set (the executable verifiers described apply to evaluation, not the training loop) — so how they avoid grader-collapse or circular validation is unstated.
+
+[Source (Meta blog)](https://research.meta.ai/blog/introducing-muse-code-and-muse-spark-1-2)
+
+</details>
+
+<details>
 <summary><strong>Qwen3.8-Max: A New Bar for Coding and Cowork</strong> · Qwen Team (Alibaba), August 2026</summary>
 
 *Official release post (August 3, 2026) for Qwen3.8-Max, the new Qwen flagship — "2.4T parameters
@@ -204,6 +245,45 @@ Sol overall.*
 - *Worth stealing / watching:* the dual-regime long-context reporting convention — publish both the compacted and the unmanaged full-context number for every BrowseComp-family run (K3's 91.2-vs-90.4 split shows the scaffold alone is worth ~1 point, and most tables hide it); and the open question of whether Quantile Balancing's hyperparameter-free expert allocation survives post-training distribution shift at 16-of-896 sparsity — the technical report's ablation there decides whether balancing-free routing is safe to assume when fine-tuning large open MoEs.
 
 [Source (Moonshot AI tech blog)](https://www.kimi.com/blog/kimi-k3)
+
+</details>
+
+<details>
+<summary><strong>To Answer or to Abstain: Mitigating Search-Agent Hallucinations via Abstention-Aware Reinforcement Learning</strong> · CityU Hong Kong & Alibaba, July 2026</summary>
+
+*A 24-page arXiv paper (v1 July 12, 2026; code, data, and weights at github.com/zfj1998/AWA-RL)
+arguing that outcome-reward RL for search agents rewards correct answers but never penalizes
+fabricated ones when retrieval fails, which implicitly amplifies hallucination. It proposes AWA-RL:
+GRPO with an explicit abstention action whose reward is anchored to a pre-measured per-query
+success probability (shaped by a single "courage" factor) and corrected online by a batch-level
+refusal-rate feedback penalty. On HotpotQA / 2WikiMultiHopQA / MuSiQue with a Qwen2.5-7B-Instruct
+agent in a Search-R1-style Wikipedia environment, it reports absolute precision gains up to +10.3
+and RA-F1 +2.9 over a non-abstaining control, at a marginal accuracy cost.*
+
+**From the report**
+
+> Diagnosis: "current RL objectives predominantly incentivize models to output the correct answer, but lack a mechanism to reward abstention… when an agent encounters queries beyond its capability boundaries or fails to retrieve sufficient evidence, it tends to fabricate an answer rather than safely abstain." — §1
+>
+> Reward structure: R = 1 if correct, 0 if incorrect, r_ref(q_i) if the agent abstains, with r_ref(q_i) = R_base(q_i) − P(E_t); R_base(q_i) = 1 − p_i*, where p_i* = (max(p_i, ε))^γ (lower-bound clip ε — the paper's example value is 0.05), p_i is the per-query correctness probability measured by a pre-RL rollout pass, and γ ∈ (0,1] is the "courage" factor. — §2.3
+>
+> Dynamic penalty: a batch-level excess-refusal rate E_t drives a piecewise penalty so severe over-refusal pushes r_ref toward −1 and under-refusal pushes it toward +1, stabilized by EMA smoothing (α=0.5 in their experiments) and step-wise quantization (the paper's example step τ=0.1), so refusal rates converge to plateaus within 20–30 GRPO steps. — §2.3, App B.1, Fig 1
+>
+> RA-F1 metric: Acc = N_c/N_total (helpfulness), Prec = N_c/(N_c+N_w) (correctness strictly when answering), RA-F1 = 2·Prec·Acc/(Prec+Acc). — §3
+>
+> Training recipe: Qwen2.5-7B-Instruct; cold-start SFT (2 epochs) on 5,000 trajectories from GPT-oss-120b; GRPO (group 16, batch 256, 5 epochs, no KL, entropy kept above 0.4) on 5,000 difficulty-filtered 2Wiki+MuSiQue queries in a Search-R1-identical environment (2018 Wikipedia dump, 100-word chunks, E5+FAISS, top-5), max 20 turns, 2×8 H100. — §3, App C
+>
+> Headline (cold-start, γ=0.2 versus the γ=0 non-abstaining control): Precision 0.559 → 0.662 (+10.3 absolute), RA-F1 0.556 → 0.585 (+2.9 absolute), Accuracy 0.552 → 0.529. — §4, Tables 3–4
+>
+> Baseline failures: from scratch, a static refusal reward of just 0.05 triggers catastrophic reward hacking (99.9% refusal, accuracy 0.000); 30% unanswerable training data causes 52.2%-refusal "lazy collapse" from scratch yet is stubbornly ignored from cold-start (refusal ≤ 1.8%); static rewards from cold-start give only a rigid zero-sum trade (precision up to 0.750 at accuracy 0.438). — §4, Tables 1–2
+>
+> Stated limitations: validated only on Qwen2.5-7B-Instruct and multi-hop search QA; the courage factor γ still needs empirical tuning per dataset/initialization; and estimating R_base requires a preliminary inference pass over the whole training set. — §Limitations
+
+**My read**
+- *What I'd look at:* §2.3 plus App B.1 as a control-theory recipe for meta-action rewards: r_ref is not a constant but a closed-loop controller — a capability-anchored base minus an EMA-smoothed, quantized excess-refusal penalty — which is exactly the machinery needed to steer any terminal action's frequency under GRPO without collapse. Tables 1–2 are the most valuable negative results: the two fixes I would instinctively try first — mixing unanswerable data, adding a static refusal bonus — are shown to be bimodal (lazy-refusal collapse from scratch versus stubborn ignoring from cold-start) and Goodhart-fragile (a 0.05 static bonus → 99.9% refusal), so the ablation grid deserves study before the method itself. Note the control discipline: the γ=0 column is a same-recipe non-abstaining control, so the +10.3/+2.9 headline is an internal ablation, and the −2.3 accuracy cost is stated in the same breath — how reliability claims should be reported. And App B.2's channel separation — an auxiliary dense citation reward that is part of the applied recipe (weight 3 on citation coverage carrying search-skill learning, while the sparse outcome channel is reserved for the answer-vs-abstain decision) — is a concrete instance of one-reward-channel-per-behavior.
+- *Where it meets my notes:* **Over-reflection** — AWA-RL attacks the mirror-image failure of my confirm-then-keep-searching finding: over-answering when evidence is absent versus over-searching when the answer is already held. Both fixes are the same mechanism — RL supervision of a terminal meta-action (abstain here, stop/pivot there) conditioned on measured model state rather than prompting — and their anti-lazy-refusal courage term is the collapse guard my stop reward would also need. **AgentPlanet** — the 0.05-static-bonus → 99.9%-refusal collapse is a quantified Goodhart case on a cheap action, and their fix — bounding the reward with measured capability priors plus a quantized feedback penalty — is the same spirit as my deterministic-gate reward checklist: never leave a gameable scalar unanchored. **The rollouts we throw away (FlashSAC)** (partial) — their pre-RL inference pass over the whole training set turns otherwise-discarded rollouts into per-query capability priors p_i that anchor the reward — a reward-side reuse of expensive rollouts; the paper itself flags this pass as overhead. **Post-cutoff distillation** (stretch) — per-query reward gating by measured prior success rhymes with the note's per-token reward gated to post-cutoff knowledge: both modulate reward by an explicitly measured knowledge boundary instead of a global constant.
+- *Worth stealing / watching:* the batch-level excess-refusal controller (EMA α=0.5 plus staircase quantization), ported to stop/pivot rewards in trajectory-repair RL — steering a meta-action toward an expected rate derived from measured capability, instead of paying a constant bonus, is directly reusable and demonstrably collapse-resistant. The open question they leave: optimal γ differs per dataset (2Wiki 0.125 versus 0.2 elsewhere) and p_i needs a full offline rollout pass, so the "single knob" is still per-dataset tuned — a sample-free capability proxy (say, from the pass-rate statistics GRPO already computes at training time) would make the recipe free.
+
+[Source (arXiv 2607.10738)](https://arxiv.org/abs/2607.10738)
 
 </details>
 
@@ -944,6 +1024,47 @@ counts or training recipe and openly admits it still trails frontier LLMs on som
 </details>
 
 <details>
+<summary><strong>Before the Model Learns the Bug: Fuzzing RLVR Verifiers</strong> · Jaideep Ray (no affiliation listed), May 2026</summary>
+
+*A 6-page single-author arXiv paper (v1 May 31, 2026; cs.AI; no affiliation listed) arguing that in
+RLVR the reward is executable software, so verifier bugs create structured false-positive regions
+that optimization learns during training — and that verifier reliability is therefore a measurable,
+auditable systems property to be fuzzed before training, not diagnosed after. It builds a
+lightweight paired-fuzzing framework — adversarial completions evaluated by intentionally-buggy
+versus stricter reference verifiers, one JSONL record per decision — across math answer-checking,
+JSON tool-call validation, and toy code unit tests. Over 10 seeds, buggy verifiers show
+false-positive rates of 0.56–0.87 where strict variants measure 0.000 on the same cases; simple
+optimizers sustain reward ~0.97–1.00 at true correctness ~0.15–0.18; and black-box search finds an
+exploit within 2–4 reward queries.*
+
+**From the report**
+
+> Five-stage paired-fuzzing pipeline: seed tasks with gold specs → adversarial completions generated by mutation category → every completion evaluated by paired buggy AND stricter reference verifiers → one JSONL record per verifier-case, paired by case identifier → metrics computed only from saved logs. — §4
+>
+> Optimization proxies isolate the reward-feedback mechanism: template search (sample → score → keep high-reward templates → mutate) and a tabular policy-gradient bandit with one logit per template and REINFORCE-style updates; strict-verifier output is logged as held-out proxy correctness but never used as training reward. — §4.3
+>
+> Buggy false-positive rates: 0.832 [0.824, 0.841] on math / 0.869 [0.863, 0.875] on JSON tool-calls / 0.557 [0.539, 0.573] on code, versus strict FPR 0.000 on the same generated cases, over 10 seeds. — Table 2
+>
+> Optimization amplifies buggy rewards: template search on the buggy math verifier reaches reward 0.967 with strict proxy correctness 0.154 (reward–correctness gap 0.812); tabular PG on buggy JSON reaches reward 1.000 versus 0.178 (gap 0.822); with strict verifiers the gap is 0.000 everywhere. — Table 5
+>
+> Budgeted black-box search finds an exploit within two verifier queries in 94/100 math and 98/100 JSON-tool trials (100/100 within four queries, both families); strict verifiers show 0/100 exploit discovery at all budgets. — §6.6
+>
+> Open-source replay: math-verify FPR 10/60 = 0.167, driven entirely by partial_answer cases (10/10 = 1.000) where the gold value appears in prose without a final-answer contract; a SymPy-backed final-answer verifier removes those false positives but acceptance drops 0.500 → 0.400 and coverage 0.900 → 0.760; jsonschema accepts 0/80 with coverage 0/80 — format-level non-engagement, not semantic rejection. — Table 3, §6.2
+>
+> Stepwise hardening ablations localize high-value fixes: math first-num .833 → +final-answer marker .233 → +contradiction check .233 → +tight numeric compare .000; JSON keys .874 → +tool check .748 → +argument values .374 → +extras .248 → +duplicates .124 → +exact parse .000; code stdout .550 → +return-value check .260 → +hidden tests .000. — Table 4
+>
+> Stated limitations: evaluation is scoped to verifier behavior, not end-to-end RLVR training; workloads are synthetic with intentionally injected defects; deterministic templates plus one adaptive loop do not model the full completion distribution of a trained LM policy; and template search / tabular PG "do not estimate exploit rates for neural fine-tuning runs." — §8
+
+**My read**
+- *What I'd look at:* §6.6 first: 94–98 of 100 trials find an exploit within TWO black-box reward queries with no verifier source access — at normal RL rollout counts the policy meets the bug in its first batches, so the question is never whether it finds the false-positive region, only how early. Table 4 is the actionable core: the stepwise FPR decomposition ranks fixes by value (a final-answer marker buys .833 → .233 on math; argument-value checks buy .748 → .374 on JSON) — a concrete priority order for hardening any deterministic gate checklist before it becomes a reward. §6.2's acceptance-plus-coverage framing is the subtle methodological lesson: SymPy reaches 0 FPR partly by narrowing the accepted language (coverage 0.900 → 0.760), and jsonschema's "0 FPR" is actually 0 coverage — an FPR number without acceptance and coverage columns can be non-engagement masquerading as strictness. And §6.4 is why pre-run fuzzing beats in-run monitoring: one adaptive mutation round concentrates exploit-candidates to 1.000 in all three families — the false-positive region is a basin that black-box feedback climbs into, not scattered label noise you can average away.
+- *Where it meets my notes:* **AgentPlanet** — my world-building reward is a checklist of deterministic gates, i.e., exactly the "reward as executable software" this paper fuzzes; the paired permissive-versus-strict differential with its exploit-candidate rate is the pre-training audit shape for that gate stack, and the reward–correctness gap is a measurable anti-Goodhart quantity for the reward channel. **Over-reflection** — math-verify's partial_answer failure (FPR 10/10 when the gold value appears in prose without a final-answer contract) is the verifier-side twin of confirm-then-keep-searching: a loose extractor rewards trajectories where the answer surfaced mid-search and searching continued anyway, so the reward channel cannot separate stop-now from keep-searching — stop/pivot RL needs a marked final-answer contract, not loose extraction. **The rollouts we throw away (FlashSAC)** (moderate) — template search's keep-high-reward-and-mutate loop is elite retention, the same amplification path a replay buffer creates; with expensive live search/MCP rollouts reused across many updates, one false-positive trajectory in the buffer compounds — verifier hardening is a precondition for off-policy reuse (the source shows reuse-amplification with template pools, not buffers). **Post-cutoff distillation** (stretch) — a per-token reward gated to post-cutoff knowledge is itself an executable acceptance rule, so its false-positive region is fuzzable in this same paired-decision way, though the paper never touches token-level gating.
+- *Worth stealing / watching:* the paired-decision JSONL pattern for gate audits — run a permissive and a strict variant of every gate on the same cases, pair records by case id, and report exploit-candidate rate alongside acceptance AND coverage columns before any RL run; the three-column report is the piece most audit tables omit. The sharp open question the paper leaves: all exploit rates come from fixed template pools driven by template search or tabular PG — does 2-query exploit discovery persist when the searcher is an LM policy sampling its own completion distribution, and what is the exploit latency in an actual neural fine-tuning run?
+
+[Source (arXiv 2606.01066)](https://arxiv.org/abs/2606.01066)
+
+</details>
+
+<details>
 <summary><strong>Terminal-World: Scaling Terminal-Agent Environments via Agent Skills</strong> · Beihang University (+ BIT / Edinburgh), May 2026</summary>
 
 *An arXiv preprint (v1 May 20, 2026, marked "Work in Progress") that makes open-source agent
@@ -1287,6 +1408,45 @@ model on MATH500 Best-of-128 by 25.2 percentage points — including 70B-scale O
 - *Worth stealing / watching:* the frozen shared candidate-pool protocol — sample N rollouts once per problem and reuse the identical pool across every verifier/selector variant — directly applicable to Best-of-N and verifier comparisons on browsing benchmarks, where single-rollout flip noise otherwise swamps method deltas. The open question the paper leaves: the verifier is only ever a test-time selector, so whether a 1.6-tool-call, ~323 s/verification agentic verifier is affordable and hack-resistant as the in-loop reward for policy RL — the obvious next use — is untested, and their §6 tool-coverage caveat is exactly where that would break for open-web search tasks.
 
 [Source (arXiv 2604.16004)](https://arxiv.org/abs/2604.16004)
+
+</details>
+
+<details>
+<summary><strong>CoEvolve: Training LLM Agents via Agent-Data Mutual Evolution</strong> · AMAP (Alibaba), April 2026</summary>
+
+*An ACL 2026 paper from AMAP, Alibaba Group (arXiv v1 April 17, 2026; code at
+github.com/AMAP-ML/CoEvolve) proposing CoEvolve, a closed-loop RL framework in which the training
+task distribution evolves jointly with the agent: three feedback signals mined from rollout
+trajectories — forgetting, boundary, and rare-pattern — steer LLM-based synthesis of new tasks,
+which enter training only after environment-execution validation. Built on GRPO over Qwen2.5-7B,
+Qwen3-4B, and Qwen3-30B-A3B with a 100-task synthetic seed set and feedback regeneration every 10
+steps, it reports average absolute gains of 19.43, 15.58, and 18.14 points over the base models
+across AppWorld and BFCL-V3 multi-turn.*
+
+**From the report**
+
+> Core loop: "CoEvolve extracts feedback signals such as forgetting and uncertainty from rollout trajectories to identify failure-prone interaction patterns, and utilizes them to guide LLM-based task synthesis. The synthesized tasks are validated through environment interaction and utilized to update the data distribution." — Abstract
+>
+> Signal definitions: a forgetting signal fires when some score in a task's recent sliding window is ≥0.5 while the current score is <0.5; a boundary signal fires when a task's K sampled trajectories contain both a success and a failure under the fixed current policy; a rare signal fires when a recurring action pattern's cumulative frequency falls below a threshold θ% (e.g., θ=5). — §3.1
+>
+> Training recipe: GRPO on the VeRL framework — lr 1e-6, 8 rollouts per prompt, batch 32, KL coefficient 1e-3, rollout temperature 0.9, binary success/failure reward, 30-step episode cap; 100 initial synthetic tasks, 120 training steps, feedback data regenerated every 10 steps, Qwen3-Max as the exploration LLM; 8× H20 for the 7B/4B models, 16× H20 (TP=2) for Qwen3-30B-A3B. — §4.2, App A.2
+>
+> Headline numbers: per-model averages over AppWorld TestN/TestC plus BFCL-V3 rise 3.08 → 22.51 (+19.43, Qwen2.5-7B), 11.72 → 27.30 (+15.58, Qwen3-4B), 22.64 → 40.78 (+18.14, Qwen3-30B-A3B); on BFCL-V3 multi-turn, Qwen2.5-7B jumps 13.50 → 61.50 and Qwen3-4B reaches 63.00, above GPT-4 (54.00) and Gemini-2.5-Flash (41.50). — §4.3, Table 1
+>
+> Against plain GRPO on the same synthetic pool, the closed loop's marginal gain is +1.20 to +7.14 points (e.g., Qwen3-4B AppWorld TestN TGC 28.57 → 35.71, BFCL 58.00 → 63.00) — at a feedback-loop cost of 9.67% of total training time on AppWorld and 12.76% on BFCL. — §4.3, Tables 2 and 7
+>
+> Eval protocol: AppWorld official Test-Normal/Test-Challenge splits scored by Task Goal Completion and Scenario Goal Completion; BFCL-V3 Multi-Turn Base, where a case succeeds "only if the model selects the correct function and generates semantically and syntactically valid arguments at every turn"; evaluation temperature 0. — §4.1, App A.1–A.2
+>
+> Removing the environment-execution validation gate on synthesized tasks drops BFCL 63.00 → 58.50 and AppWorld 35.71 → 27.38 — unvalidated abstracted tasks actively degrade training. — App A.3, Table 11
+>
+> Own limitation: "the extracted signals are derived from the agent's own interaction trajectories and therefore depend on the current policy. At early stages of training, when the agent's behavior is still immature, the resulting signals may be noisy or incomplete"; the three signals "cover only a subset of potentially informative feedback." — §Limitations
+
+**My read**
+- *What I'd look at:* §3.1 first: boundary signals are literally the GRPO groups with mixed outcomes — the exact tasks where group-relative advantage is non-degenerate — so the highest-volume signal (51.4% of the harvest on AppWorld, 45.5% on BFCL) is a free byproduct of RL plumbing I already run, and the marginal cost is only the re-exploration stage. Read Table 2 against Table 1 before quoting the headline: most of the +48.0 BFCL jump is plain GRPO on the static synthetic pool (13.50 → 56.00), and the closed loop's true marginal is +1.20 to +7.14 points at ~10% extra wall-clock — that delta, not the vs-base number, is the decision-relevant quantity for wiring this into a trajectory-synthesis pipeline. Tables 11 and 12 are the design-load-bearing sections for anyone building task synthesis: the execution-validation gate alone is worth 8.33 AppWorld points, and feedback still pays when the explorer is the policy model itself (53.00 → 56.50 on BFCL) — the self-evolution configuration — while a stronger separate explorer raises the ceiling (Qwen-Max: 63.00). And Table 13 is a caution against pure hard-negative mining: binning synthesized tasks by similarity to validation tasks is non-monotonic and mixed-similarity wins (63.00 vs 56.50–59.00), so difficulty-targeted synthesis needs a diversity floor.
+- *Where it meets my notes:* **AgentPlanet** — my note argues a checklist of deterministic gates should act as the reward function for world/task-building, and CoEvolve's environment-execution validation is exactly that gate for its task-builder role (removing it costs 8.33 AppWorld points); Table 12 also bears on the one-model-three-roles factorization: the policy playing its own explorer still profits from feedback, but a stronger separate builder raises the ceiling. **Over-reflection** — my fix for confirm-then-keep-searching is per-type trajectory repair rather than generic more-data, and CoEvolve operationalizes the same principle as a three-way failure taxonomy (forgetting/boundary/rare) that conditions what gets synthesized, with per-type value quantified (dropping forgetting alone costs 4.18 average points); their forgetting trigger — window-max ≥0.5, now <0.5 — is a state-conditioned regression detector, a cousin of my state-conditioned stop/pivot signals. **The rollouts we throw away (FlashSAC)** — both start from the observation that rollout streams are an underused paid-for asset: FlashSAC reuses them for gradient via replay and low update-to-data ratios, CoEvolve reuses them as a diagnostic substrate for data evolution at ~10–13% time overhead — complementary channels, not competing ones. **Post-cutoff distillation** (stretch) — both designs gate what synthesized material may enter training (environment-execution acceptance there, per-token reward gated to post-cutoff knowledge in the note), but the gated quantity differs: task admission versus token credit.
+- *Worth stealing / watching:* the forgetting trigger, ported as-is into any GRPO loop over search tasks — keep a sliding window of per-task scores and flag window-max ≥0.5 with current <0.5; it is their single most valuable signal and costs nothing beyond bookkeeping already done for advantage normalization. The open question the paper leaves: signals are policy-dependent and admittedly noisy at low competence, and the looser acceptance arm ("execution fails but the environment returns positive reward → keep") looks Goodhart-able — yet there is no audit of false-positive task admissions beyond the aggregate validation ablation, exactly the reward-channel-integrity hole my gate checklists are meant to close.
+
+[Source (arXiv 2604.15840)](https://arxiv.org/abs/2604.15840)
 
 </details>
 
