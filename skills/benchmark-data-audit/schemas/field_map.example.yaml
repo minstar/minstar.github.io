@@ -1,0 +1,75 @@
+# field_map.example.yaml — copy to field_map.yaml and point at YOUR JSONL fields.
+# Edited ONCE; every detector then reads the normalized record (see schema.md).
+# Values are DOTTED PATHS into your row; JSON-string fields are parsed on the way
+# (so function.arguments resolves through the JSON automatically).
+#
+# Provide EITHER a `messages:` block (chat-style messages[] array) OR a `tools:`
+# block (flat tool-call list). Scalar fields below are optional.
+
+# ---- scalar fields (all optional; omit what you don't have) ---------------- #
+sample_id: id                 # stable id; falls back to row{n} if absent
+question: question
+gold_answer: answer           # short ground-truth string. If absent on SFT data,
+                              # the trajectory's own final answer is used instead.
+pred_answer:                  # optional explicit path; in messages mode the last
+                              # assistant content is used automatically.
+correct: prediction.is_correct   # bool / 0-1 / yes-no / correct-incorrect string
+confidence:
+  path: prediction.confidence
+  scale: 100                  # divide by this to map onto [0,1]; 100 for percent
+
+# ---- reasoning (optional; for the `tools:` flat layout) -------------------- #
+# In messages mode use messages.reasoning_field instead.
+# reasoning:
+#   path: prediction.reasoning
+
+# ============================================================================ #
+# LAYOUT A — chat messages[] array (OpenAI / gpt-oss simple_browser style).    #
+# This matches open2_official: context[] with role/content/tool_calls/reasoning.
+# ============================================================================ #
+messages:
+  path: context               # the messages array (e.g. "messages" or "context")
+  role_field: role
+  content_field: content      # final answer = last assistant content
+  reasoning_field: reasoning  # assistant CoT lives HERE, separate from content
+  assistant_roles: [assistant]
+  tool_roles: [tool]
+  tool_calls_field: tool_calls       # list on the assistant message
+  tool_name_path: function.name      # path WITHIN one tool_call -> tool name
+  tool_args_path: function.arguments # path WITHIN one tool_call -> args (JSON str ok)
+  query_field: query                 # path WITHIN parsed args -> the query string
+
+# ---- concise-answer extraction (used only when falling back to pred) ------- #
+answer_extract:
+  prefer_bold: true           # take last **bolded** span if no Answer: marker
+  # regex: 'Final answer:\s*(.+)'   # custom capture; group(1) is the answer
+
+# ---- tool taxonomy: regex (substring) on tool name -> category ------------- #
+# search/open/find mirror gpt-oss simple_browser; everything else -> "other".
+taxonomy:
+  search: ['search', 'web_search', 'query', 'google', 'bing']
+  open:   ['open', 'goto', 'fetch', 'visit', 'click']
+  find:   ['find', 'ctrl_f', 'search_in_page', 'scroll_to']
+  # write verbs (CRUD C/U/D) — used by crud_state_assertion collateral check
+  write:  ['create', 'update', 'delete', 'insert', 'remove', 'add', 'set', 'send',
+           'post', 'put', 'patch', 'book', 'cancel', 'modify', 'write']
+
+# ---- state-based CRUD verification (crud_state_assertion) ------------------- #
+# Only for data that SHIPS a gold spec per sample (τ-bench/τ²/BFCL/AppWorld-style;
+# absent on plain SFT trajectories → detector skips). See
+# references/mcp_state_verification.md. `path` points at the per-row gold object.
+# state_assertions:
+#   path: gold_state
+#   expected_actions_field: expected_actions   # [{name, args}] required write calls
+#   allowed_actions_field: allowed_actions      # write-call allowlist (collateral check)
+#   required_outputs_field: required_outputs     # strings that must appear in final answer
+
+# ============================================================================ #
+# LAYOUT B — flat tool-call list (use INSTEAD of `messages:`). Uncomment.      #
+# ============================================================================ #
+# tools:
+#   path: tool_calls          # list of call objects
+#   name_field: name
+#   query_field: arguments.query   # dotted path within each call -> query
+#   response_field: response       # dotted path within each call -> observation
+#   reasoning_field: thought       # optional per-call reasoning text
