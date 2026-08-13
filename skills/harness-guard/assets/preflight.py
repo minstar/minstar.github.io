@@ -265,9 +265,67 @@ def check_referenced_scripts(c):
     return r("script-refs", PASS, "%d referenced scripts exist" % len(refs))
 
 
+MODULE_ARG = re.compile(
+    r"(?:-m|--custom[-_]rm[-_]path|--rm[-_]module|--reward[-_]module|--rm[-_]path)"
+    r"\s+['\"]?([A-Za-z_][\w]*(?:\.[A-Za-z_]\w*)+)")
+SCRIPT_ARG = re.compile(r"(?<![\w/.-])([A-Za-z_][\w.-]*/[\w./-]+\.py)")
+
+
+def check_python_module_refs(c):
+    """Resolve python module/script references against the script's own PYTHONPATH.
+
+    Installed after EXP-001: a three-arm run burned 224 single-digit-second resubmissions on
+    ModuleNotFoundError, because the submit path derived a per-arm reward-module name from the arm
+    label and that module was never created. The failure is deterministic — an autoretry loop can
+    never clear it — so it has to be caught before submission, not after.
+    """
+    roots = []
+    for m in re.finditer(r"(?:export\s+)?PYTHONPATH=([^\s;]+)", c.text):
+        for part in Ctx.expand(m.group(1).strip('"').strip("'"), c.vars).split(":"):
+            part = part.strip()
+            if part and not part.startswith("$") and os.path.isdir(part):
+                roots.append(part)
+    roots.append(os.path.dirname(os.path.abspath(c.path)))
+    roots = list(dict.fromkeys(roots))
+
+    refs = []                                    # (lineno, raw, kind)
+    for i, ln in enumerate(c.lines, 1):
+        s = ln.strip()
+        if s.startswith("#") and not s.startswith("#SBATCH"):
+            continue
+        e = Ctx.expand(ln, c.vars)
+        for m in MODULE_ARG.finditer(e):
+            refs.append((i, m.group(1), "module"))
+        if re.search(r"\bpython3?\b|\$ENVPY|\bsrun\b|\btorchrun\b", e):
+            for m in SCRIPT_ARG.finditer(e):
+                p = m.group(1)
+                if not p.startswith("/"):
+                    refs.append((i, p, "script"))
+    if not refs:
+        return r("module-refs", SKIP, "no python module/script references resolvable from this script")
+
+    missing = []
+    for lineno, raw, kind in refs:
+        if "$" in raw:
+            continue                             # unexpanded template — cannot verify, do not claim
+        rels = [raw.replace(".", os.sep) + ".py"] if kind == "module" else [raw]
+        if kind == "module":
+            rels.append(raw.replace(".", os.sep))          # package dir with __init__.py
+        if not any(os.path.exists(os.path.join(rt, rel)) for rt in roots for rel in rels):
+            missing.append((lineno, raw, kind))
+
+    if missing:
+        ev = "; ".join("L%d: %s (%s)" % (n, raw, k) for n, raw, k in missing[:5])
+        return r("module-refs", FAIL, "%d python reference(s) do not resolve" % len(missing),
+                 ev + "  [roots: %s]" % ", ".join(roots[:3]),
+                 "ModuleNotFoundError fails in ~2s and an autoretry loop will resubmit it forever "
+                 "(EXP-001: 224 wasted submissions). Create the module or fix the name before submitting.")
+    return r("module-refs", PASS, "%d python reference(s) resolve" % len(refs))
+
+
 CHECKS = [check_partition, check_shared_storage, check_conda_env, check_paths_exist,
           check_uv_cache, check_flashinfer, check_rocr, check_hf_home, check_requeue,
-          check_serve_teardown, check_referenced_scripts]
+          check_serve_teardown, check_referenced_scripts, check_python_module_refs]
 
 
 def main():

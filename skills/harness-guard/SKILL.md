@@ -50,6 +50,7 @@ Exit `0` = clear to submit · `1` = at least one FAIL (or a WARN under `--strict
 | `conda-env` | FAIL | Training always runs in the `torchtitan` env; another env silently trains with the wrong stack |
 | `paths-exist` | FAIL | Literal input/checkpoint paths that no longer exist after a refactor — the most common procedural failure |
 | `script-refs` | FAIL | A submit wrapper pointing at a moved/renamed sbatch file runs the wrong thing or dies late |
+| `module-refs` | FAIL | A python module/script reference that does not resolve against the script's own `PYTHONPATH`. Fails in ~2s, so an autoretry loop resubmits it forever — EXP-001 spent 224 submissions this way |
 | `uv-cache` | FAIL | On requeue a shared uv cache collides and the job FAILs immediately; needs a per-job `UV_CACHE_DIR` |
 | `rocr` | FAIL | The cluster sets ROCR and CUDA visible devices together; verl workers die until `ROCR_VISIBLE_DEVICES` is unset |
 | `flashinfer` | WARN | A shared flashinfer JIT cache causes ninja build failures across concurrent jobs |
