@@ -135,9 +135,9 @@ def main():
     # A loop that matches no queued job is a candidate orphan. Match on the WHOLE command line, not
     # the script filename: these loops take the job name as an argument (`autoretry.sh <name> ...`),
     # so filename-only matching flagged live, healthy supervisors as orphans.
-    # Generic words match by accident — `.../solar-system-eval-wbl-eval/...` "matched" the job
-    # `hcgym-eval-base27b` on the token `eval` and hid a genuine 11-day orphan. Only distinctive
-    # tokens count.
+    # Generic words match by accident: an unrelated path containing `eval` "matched" a queued job
+    # whose name also contained `eval`, and that spurious match hid a genuine 11-day-old orphan
+    # watcher. Only distinctive tokens count.
     STOP = {"eval", "evals", "train", "test", "run", "runs", "job", "jobs", "log", "logs", "tmp",
             "temp", "data", "model", "models", "base", "main", "work", "workspace", "scratchpad",
             "claude", "private", "home", "user", "bash", "sh", "py", "out", "err", "watch", "auto",
