@@ -263,6 +263,21 @@ Refresh the corpus and catalog each run so the angles track his live trajectory,
   reader-facing ("identity confirmed against the abs-page metadata, the rendered cover, and the arXiv
   API"). Relatedly, do not publish a reader's claim that a URL served the wrong paper unless the
   verifier reproduced it — in this run two such claims did not reproduce on independent re-fetch.
+- **The arXiv HTML is a reading aid, not the source of record — confirm numbers, affiliations and
+  table/figure pointers against the PDF.** In the 2026-08-14 rounds, entries built from `/html/` alone
+  produced the same class of error four separate times, and a verifier traced three of one entry's four
+  corrections to exactly this habit. LaTeXML silently: (a) **drops the entire author/affiliation block**
+  — one paper's `ltx_authors` div was empty, and the entry nearly published "no institution is stated"
+  about a paper whose PDF cover prints the affiliation directly under the author line; (b) **mis-resolves
+  cross-references** — in-text "Table 4" pointing at Tables 2 and 3, "Figure 3" at Figure 2 — which the
+  PDF renders correctly, so an entry can end up reporting the *paper* as internally inconsistent when
+  only the rendering is; (c) **doubles digits in math mode** — "6–8 estimated steps" rendering as
+  "66–88", "3–6 on a 1–6 scale" as "33–66 on a 11–66 scale"; and (d) leaves figures as `alt="Refer to
+  caption"` images whose per-cell values *are* recoverable from the PDF text layer via `pdftotext
+  -layout`. Practical rule: read the HTML for prose, but take every number, affiliation and float
+  reference from the PDF (rasterized cover + text layer), and never publish a **negative** claim — "no
+  affiliation is given", "the paper's cross-reference is broken", "this value appears nowhere" — that
+  rests on the HTML alone.
 - **Keep the lens current.** Rebuild it from `notes/*.md` each run so connections track his live work.
 - **master is the deploy branch.** Commit directly to `master`; do not open a feature branch.
 
