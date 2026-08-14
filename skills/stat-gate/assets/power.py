@@ -285,6 +285,23 @@ def cmd_compare(a):
     # Degeneracy parity — the check that would have caught EXP-004 automatically.
     confounded = False
     both = [k for k in shared if k in flagA and k in flagB]
+
+    # ITT decomposition. With non-answers scoring zero, ITT is an IDENTITY, not an approximation:
+    #   ITT = answered_fraction x accuracy_among_answered
+    # Verified exact on files carrying `answer_source` (0.4700 = 0.52 x 0.9038). On legacy files the
+    # regex proxy disagrees with the scorer on a handful of rows, so it is approximate there — one
+    # more reason to prefer the explicit field. Printing the two factors makes it possible to say
+    # WHICH one moved, instead of attributing a delta to whatever mechanism is top of mind. A factor
+    # that is identical across arms cannot explain a difference between them.
+    if both:
+        for nm, D, fl in (("A", A, flagA), ("B", B, flagB)):
+            ansd = [k for k in both if not fl.get(k)]
+            if ansd:
+                af = len(ansd) / len(both)
+                aa = mean([D[k] for k in ansd])
+                print("  %s decomposition: ITT %.4f = answered %.3f x answered-acc %.4f"
+                      % (nm, af * aa, af, aa))
+
     if both:
         ra = sum(1 for k in both if flagA[k]) / len(both)
         rb = sum(1 for k in both if flagB[k]) / len(both)
