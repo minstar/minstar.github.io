@@ -236,6 +236,30 @@ def cmd_compare(a):
     print("  A = %s" % os.path.basename(a.a))
     print("  B = %s" % os.path.basename(a.b))
 
+    # Slice representativeness. Promoted from a lesson: within one hour two people predicted a
+    # full-set number from a 100-item smoke and were wrong in OPPOSITE directions, because the smoke
+    # was the file's first 100 rows and the benchmark is subject-ordered — its no-answer rate ran
+    # 41-45% against 29-31% over the full set. A head slice is not a sample.
+    ka, kb = list(A.keys()), list(B.keys())
+    small, big, sname = (ka, kb, "A") if len(ka) < len(kb) else (kb, ka, "B")
+    if len(small) * 2 <= len(big) and set(small) <= set(big):
+        head = big[:len(small)] == small
+        print("  SLICE: %s covers %d of the %d item(s) in the other arm%s."
+              % (sname, len(small), len(big), " — and they are its FIRST rows, in order" if head else ""))
+        if head:
+            print("      A leading block is not a random sample. Do not extrapolate this to the full set.")
+        # show the discrepancy that makes it concrete
+        fbig = {**flagA, **flagB}
+        if fbig:
+            src = flagA if sname == "B" else flagB          # the full side's flags
+            if src:
+                on_slice = [k for k in small if k in src]
+                if on_slice:
+                    rs = sum(1 for k in on_slice if src[k]) / len(on_slice)
+                    rf = sum(1 for k in src if src[k]) / len(src)
+                    print("      non-answer on the full arm: %.1f%% overall vs %.1f%% on these rows"
+                          % (100 * rf, 100 * rs))
+
     # Repeat-count parity. Promoted from a lesson: one arm had three runs of a benchmark and the
     # other had one, so a glob silently picked one of three on one side, and the side with a single
     # run had no run-level error bar at all. A ceiling measured on the repeated arm cannot be
