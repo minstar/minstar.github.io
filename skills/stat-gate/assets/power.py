@@ -29,10 +29,18 @@ import json
 import math
 import os
 import random
+import re
 import sys
 
 ID_KEYS = ("id", "task_id", "question_id", "qid", "idx", "index", "example_id")
 SCORE_KEYS = ("correct", "score", "em", "exact_match", "pass", "passed", "reward", "acc", "accuracy")
+
+# A "degenerate" answer is one the harness recorded but that cannot be a real answer — most often a
+# trailing tool call captured after an episode ran out of turns. These score wrong automatically, so
+# if two arms differ in how often they produce one, the comparison is partly a format-compliance
+# contest. Detected by default on whatever free-text answer field is present.
+ANSWER_FIELDS = ("submitted", "prediction", "response", "output", "answer", "generation")
+DEGENERATE_RX = re.compile(r"<tool_call>|<function=|^\s*$", re.I)
 
 Z_CI = 1.96      # two-sided 95%
 Z_POWER = 0.84   # 80% power
@@ -105,8 +113,8 @@ def _records(path):
 
 
 def load(path):
-    """{id: score} from JSONL or a JSON results file. Raises rather than guessing."""
-    rows, id_key, score_key = {}, None, None
+    """({id: score}, dupes, score_key, {id: degenerate?}) from JSONL or a JSON results file."""
+    rows, flags, id_key, score_key, ans_key = {}, {}, None, None, None
     dupes = skipped = 0
     for rec in _records(path):
         if not isinstance(rec, dict):
@@ -114,6 +122,7 @@ def load(path):
         if id_key is None:
             id_key = next((k for k in ID_KEYS if k in rec), None)
             score_key = next((k for k in SCORE_KEYS if k in rec), None)
+            ans_key = next((k for k in ANSWER_FIELDS if k in rec), None)
             if id_key is None or score_key is None:
                 raise ValueError("%s: cannot find an id field %s and a score field %s in %r"
                                  % (os.path.basename(path), ID_KEYS, SCORE_KEYS, sorted(rec)[:10]))
@@ -128,12 +137,14 @@ def load(path):
         if k in rows:
             dupes += 1
         rows[k] = v
+        if ans_key is not None and ans_key in rec:
+            flags[k] = bool(DEGENERATE_RX.search(str(rec[ans_key])))
     if skipped:
         print("  NOTE: %s — %d record(s) had an unparseable %s and were excluded"
               % (os.path.basename(path), skipped, score_key), file=sys.stderr)
     if not rows:
         raise ValueError("%s: no usable records" % path)
-    return rows, dupes, score_key
+    return rows, dupes, score_key, flags
 
 
 def mean(xs):
@@ -173,8 +184,8 @@ def mde(sd_diff, n):
 
 
 def cmd_compare(a):
-    A, dupA, keyA = load(a.a)
-    B, dupB, keyB = load(a.b)
+    A, dupA, keyA, flagA = load(a.a)
+    B, dupB, keyB, flagB = load(a.b)
     shared = sorted(set(A) & set(B))
     if not shared:
         print("no overlapping ids between the two files — an unpaired comparison is not "
@@ -201,6 +212,37 @@ def cmd_compare(a):
     if dupA or dupB:
         print("  NOTE: duplicate ids collapsed (A:%d, B:%d) — last value won" % (dupA, dupB))
 
+    # Degeneracy parity — the check that would have caught EXP-004 automatically.
+    confounded = False
+    both = [k for k in shared if k in flagA and k in flagB]
+    if both:
+        ra = sum(1 for k in both if flagA[k]) / len(both)
+        rb = sum(1 for k in both if flagB[k]) / len(both)
+        print("  non-answers (tool-call/empty)  A %.1f%%  B %.1f%%   delta %+.1fpp"
+              % (100 * ra, 100 * rb, 100 * (rb - ra)))
+        if abs(rb - ra) >= 0.02:
+            clean = [k for k in both if not flagA[k] and not flagB[k]]
+            print("\n  WARNING: the arms differ by %.1fpp in how often they emit something that cannot be an\n"
+                  "  answer. Those score wrong automatically, so part of the delta above is format\n"
+                  "  compliance, not capability." % (100 * abs(rb - ra)))
+            if len(clean) >= 30:
+                cd = [B[k] - A[k] for k in clean]
+                cl, ch = paired_bootstrap(cd, a.iters, a.seed)
+                print("  On the %d item(s) where BOTH arms actually answered:\n"
+                      "      delta %+.4f   95%% CI [%+.4f, %+.4f]   (vs %+.4f overall)"
+                      % (len(clean), mean(cd), cl, ch, d))
+                print("  Read that as the capability side. It conditions on an outcome-correlated\n"
+                      "  variable, so it is a decomposition rather than a bias-free estimate — but a\n"
+                      "  delta that vanishes here was not measuring capability.")
+                confounded = (cl <= 0 <= ch)          # clean CI spans zero -> headline was format
+            else:
+                print("  Too few items where both arms answered (%d) to re-estimate." % len(clean))
+
+    if (lo > 0 or hi < 0) and confounded:
+        print("\nCONFOUNDED: the headline delta %+.4f clears the CI, but it disappears once both arms are\n"
+              "required to have produced an answer. What was measured is format compliance, not\n"
+              "capability. Do not report the headline number; fix answer extraction and re-run." % d)
+        return 0
     if lo > 0 or hi < 0:
         print("\nSIGNIFICANT: the 95%% CI excludes zero. Delta %+.4f is above this design's noise." % d)
         if abs(d) < this_mde:
@@ -223,7 +265,7 @@ def cmd_compare(a):
 def cmd_floor(a):
     runs = []
     for p in a.runs:
-        r, _dup, _k = load(p)
+        r, _dup, _k, _f = load(p)
         runs.append((os.path.basename(p), r))
     ids = set(runs[0][1])
     for _n, r in runs[1:]:

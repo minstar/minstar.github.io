@@ -70,6 +70,26 @@ Given sd of the paired difference and the delta you care about, it prints the re
 of the plan you have. Run this *before* the sweep. Discovering that 500 items could never have
 resolved 2pp is much cheaper as arithmetic than as a week of runs.
 
+## The confound check that runs on every comparison
+
+`compare` also looks at the arms' **answer** field (`submitted`/`prediction`/`response`/`output`/
+`answer`/`generation`, whichever is present) and counts answers that cannot be answers — a trailing
+tool call captured after an episode ran out of turns, or an empty string. These score wrong
+automatically.
+
+If the two arms differ by ≥2pp in that rate, it warns and re-estimates the delta on the items where
+**both** arms actually answered. If the delta disappears there, the verdict becomes **CONFOUNDED**
+instead of SIGNIFICANT: what was measured is format compliance, not capability.
+
+This is not hypothetical. On one real comparison the headline read −6.9pp, the arms differed by
+10.3pp in non-answer rate, and on the 550 items where both answered the delta was −0.4pp
+[−1.6, +0.9] — the entire result was extraction failure. A sibling comparison kept +5.9pp of its
++10.1pp headline, so the check separates the two cases rather than dismissing both.
+
+Caveat, stated in the output: conditioning on "both arms answered" conditions on a variable
+correlated with the outcome, so the clean column is a **decomposition, not a bias-free estimate**.
+A delta that survives it is not thereby proven causal; a delta that vanishes was not capability.
+
 ## The reporting contract
 
 A number leaves this skill with four things attached, or it does not leave:
