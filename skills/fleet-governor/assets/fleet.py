@@ -124,8 +124,8 @@ def deterministic(fails):
     return False, ""
 
 
-def classify(name, rows):
-    """Verdict for one job name over its recent history."""
+def classify(name, rows, running=None):
+    """Verdict for one job name over its recent history, in light of what is running now."""
     if not rows:
         return {"verdict": "NEW", "detail": "no terminal states in window", "counts": {}}
     fails = [x for x in rows if x["state"] == "FAILED"]
@@ -137,11 +137,27 @@ def classify(name, rows):
 
     det, why = deterministic(fails)
 
-    # Nothing is landing. This dominates every other reading.
-    if fails and not comp:
+    # A live attempt that has already outlasted every failure has cleared whatever wall they hit.
+    # Without this, one 2-second fast-fail plus a healthy 3-minute rerun read as FUTILE — a verdict
+    # that would have had someone kill a job that was working.
+    longest_fail = max([e for e in (elapsed_secs(x["elapsed"]) for x in fails) if e is not None],
+                       default=0)
+    live = max([e for e in (elapsed_secs(j["elapsed"]) for j in (running or [])) if e is not None],
+               default=0)
+    if fails and live > max(longest_fail * 2, longest_fail + 60):
+        return {"verdict": "RECOVERING", "counts": counts,
+                "detail": "%d past failure(s) (longest %ds) but a live attempt is at %ds — it is "
+                          "past the wall they hit" % (len(fails), longest_fail, live)}
+
+    # Nothing is landing. This dominates every other reading — but one failure is an incident, not a
+    # pattern, so it does not earn a verdict that invites cancelling the arm.
+    if len(fails) >= 2 and not comp:
         d = ("deterministic — %s; retrying cannot clear it" % why) if det else \
             ("%d failure(s), zero completions in window" % len(fails))
         return {"verdict": "FUTILE", "counts": counts, "detail": d}
+    if fails and not comp:
+        return {"verdict": "WATCH", "counts": counts,
+                "detail": "1 failure, no completion yet — an incident, not yet a pattern"}
 
     # Work is landing, but a repeated identical failure is also being resubmitted — the one that
     # hides, because the completions make the arm look fine.
@@ -179,12 +195,12 @@ def main():
     report = []
     for n in names:
         rows = history(n, since)
-        c = classify(n, rows)
+        c = classify(n, rows, [j for j in running if j["name"] == n])
         c["name"] = n
         c["running"] = [j for j in running if j["name"] == n]
         report.append(c)
 
-    bad = [x for x in report if x["verdict"] in ("FUTILE", "WASTEFUL")]
+    bad = [x for x in report if x["verdict"] in ("FUTILE", "WASTEFUL")]   # WATCH/RECOVERING inform, not demand
     # A loop that matches no queued job is a candidate orphan. Match on the WHOLE command line, not
     # the script filename: these loops take the job name as an argument (`autoretry.sh <name> ...`),
     # so filename-only matching flagged live, healthy supervisors as orphans.
