@@ -25,6 +25,7 @@ Exit 0 = a verdict was produced. Exit 1 = SIGNIFICANT. Exit 2 = inputs unusable.
 SIGNIFICANT is the case that changes what happens next.)
 """
 import argparse
+import glob as globmod
 import json
 import math
 import os
@@ -147,6 +148,15 @@ def load(path):
     return rows, dupes, score_key, flags
 
 
+def siblings(path):
+    """How many repeat runs of this benchmark sit next to the chosen file."""
+    base = os.path.basename(path)
+    m = re.match(r"^(.*?)[_-]?\d{6,}", base)          # strip the run timestamp
+    if not m or not m.group(1):
+        return 0
+    return len(globmod.glob(os.path.join(os.path.dirname(path) or ".", m.group(1) + "*")))
+
+
 def mean(xs):
     return sum(xs) / len(xs) if xs else 0.0
 
@@ -206,6 +216,18 @@ def cmd_compare(a):
     # has to say what it actually read.
     print("  A = %s" % os.path.basename(a.a))
     print("  B = %s" % os.path.basename(a.b))
+
+    # Repeat-count parity. Promoted from a lesson: one arm had three runs of a benchmark and the
+    # other had one, so a glob silently picked one of three on one side, and the side with a single
+    # run had no run-level error bar at all. A ceiling measured on the repeated arm cannot be
+    # applied to the un-repeated one.
+    na, nb = siblings(a.a), siblings(a.b)
+    if na and nb and na != nb:
+        print("  REPEAT ASYMMETRY: A has %d run(s) of this benchmark, B has %d." % (na, nb))
+        print("      The arm with more runs has a measurable rerun spread; the other does not.\n"
+              "      Do not carry a noise floor across them, and say which file each side used.")
+    elif na and na > 1:
+        print("  note: %d run(s) of this benchmark exist per arm — this compares ONE of them" % na)
     print("  A mean        %.4f" % mean([A[k] for k in shared]))
     print("  B mean        %.4f" % mean([B[k] for k in shared]))
     print("  delta (B-A)   %+.4f   95%% CI [%+.4f, %+.4f]  (paired bootstrap, %d iters)"
