@@ -201,6 +201,11 @@ def cmd_compare(a):
     need = required_n(s, abs(d)) if d else 0
 
     print("paired comparison on %d shared item(s)   [score field: %s/%s]" % (len(shared), keyA, keyB))
+    # Name the files. A glob like `<bench>_multiturn_*.json` is ambiguous when an arm has repeat
+    # runs, and which one it resolves to moves the number by about the noise floor — so the output
+    # has to say what it actually read.
+    print("  A = %s" % os.path.basename(a.a))
+    print("  B = %s" % os.path.basename(a.b))
     print("  A mean        %.4f" % mean([A[k] for k in shared]))
     print("  B mean        %.4f" % mean([B[k] for k in shared]))
     print("  delta (B-A)   %+.4f   95%% CI [%+.4f, %+.4f]  (paired bootstrap, %d iters)"

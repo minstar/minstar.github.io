@@ -199,11 +199,27 @@ def main():
     def distinctive(s):
         return {t for t in re.findall(r"[a-z0-9_]{4,}", s.lower()) if t not in STOP}
 
+    def linked(job_toks, cmd_toks):
+        """Exact token overlap, OR one token containing another (>=5 chars).
+
+        `autoretry_perfroll.sh` feeds jobs named `perfroll-0..3`; exact-token matching missed it and
+        called a healthy live supervisor an orphan. Driver scripts routinely embed the job name.
+        """
+        if job_toks & cmd_toks:
+            return True
+        for j in job_toks:
+            if len(j) < 5:
+                continue
+            for c in cmd_toks:
+                if j in c or (len(c) >= 5 and c in j):
+                    return True
+        return False
+
     orphans = []
     job_toks = [distinctive(n) for n in names]
     for s in sups:
         cmd_toks = distinctive(s["cmd"])
-        matched = bool(names) and any(jt & cmd_toks for jt in job_toks)
+        matched = bool(names) and any(linked(jt, cmd_toks) for jt in job_toks)
         # Age is the second, independent signal: a supervisor that has outlived any plausible run
         # is worth surfacing even if a token happens to line up.
         stale = bool(re.match(r"^\d+-", s["etime"])) and int(s["etime"].split("-")[0]) >= 3
