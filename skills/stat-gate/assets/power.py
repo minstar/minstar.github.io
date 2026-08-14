@@ -38,36 +38,99 @@ Z_CI = 1.96      # two-sided 95%
 Z_POWER = 0.84   # 80% power
 
 
-def load(path):
-    """{id: score} from a JSONL file. Raises on an unusable file rather than guessing."""
-    rows, id_key, score_key = {}, None, None
-    dupes = 0
+TRUEY = {"true", "yes", "y", "correct", "pass", "passed", "1", "1.0"}
+# Deliberately excludes "", "none", "null": a MISSING score is not a zero. Scoring it as incorrect
+# silently biases the mean down and makes an arm look worse than it is — the same under-report trap
+# that makes a broken cost recorder report a comfortable number. Missing cells are skipped and
+# counted instead.
+FALSEY = {"false", "no", "n", "incorrect", "fail", "failed", "0", "0.0"}
+
+
+def to_score(v):
+    """Coerce a score cell to float. Real harnesses write booleans as the STRINGS 'True'/'False'."""
+    if isinstance(v, bool):
+        return 1.0 if v else 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        s = v.strip().lower()
+        if s in TRUEY:
+            return 1.0
+        if s in FALSEY:
+            return 0.0
+        return float(s)                        # raises for genuinely unparseable cells
+    raise ValueError("unparseable score %r" % (v,))
+
+
+def _records(path):
+    """Dict records from JSONL, or from a JSON document holding a list of per-item results."""
     with open(path, encoding="utf-8", errors="replace") as fh:
+        stripped = fh.read(512).lstrip()
+        fh.seek(0)
+        if stripped.startswith("["):
+            for rec in json.load(fh):
+                yield rec
+            return
+        if stripped.startswith("{"):
+            try:
+                doc = json.load(fh)
+            except json.JSONDecodeError:
+                doc = None                     # JSONL whose first line happens to be an object
+            if isinstance(doc, dict):
+                named = [v for k, v in doc.items()
+                         if k in ("results", "items", "records", "predictions", "samples")
+                         and isinstance(v, list)]
+                lists = named or [v for v in doc.values()
+                                  if isinstance(v, list) and v and isinstance(v[0], dict)]
+                if lists:
+                    for rec in lists[0]:
+                        yield rec
+                    return
+                # A single-record JSONL file parses as one object with no per-item list. If it
+                # carries an id and a score it IS the record, not a malformed wrapper.
+                if any(k in doc for k in ID_KEYS) and any(k in doc for k in SCORE_KEYS):
+                    yield doc
+                    return
+                raise ValueError("%s: JSON object has no per-item list (keys: %s)"
+                                 % (os.path.basename(path), sorted(doc)[:10]))
+            fh.seek(0)
         for ln in fh:
             ln = ln.strip()
             if not ln:
                 continue
             try:
-                rec = json.loads(ln)
+                yield json.loads(ln)
             except json.JSONDecodeError:
                 continue
-            if not isinstance(rec, dict):
-                continue
-            if id_key is None:
-                id_key = next((k for k in ID_KEYS if k in rec), None)
-                score_key = next((k for k in SCORE_KEYS if k in rec), None)
-                if id_key is None or score_key is None:
-                    raise ValueError("%s: cannot find an id field %s and a score field %s in %r"
-                                     % (os.path.basename(path), ID_KEYS, SCORE_KEYS,
-                                        sorted(rec)[:8]))
-            if id_key not in rec or score_key not in rec:
-                continue
-            v = rec[score_key]
-            v = 1.0 if v is True else 0.0 if v is False else float(v)
-            k = str(rec[id_key])
-            if k in rows:
-                dupes += 1
-            rows[k] = v
+
+
+def load(path):
+    """{id: score} from JSONL or a JSON results file. Raises rather than guessing."""
+    rows, id_key, score_key = {}, None, None
+    dupes = skipped = 0
+    for rec in _records(path):
+        if not isinstance(rec, dict):
+            continue
+        if id_key is None:
+            id_key = next((k for k in ID_KEYS if k in rec), None)
+            score_key = next((k for k in SCORE_KEYS if k in rec), None)
+            if id_key is None or score_key is None:
+                raise ValueError("%s: cannot find an id field %s and a score field %s in %r"
+                                 % (os.path.basename(path), ID_KEYS, SCORE_KEYS, sorted(rec)[:10]))
+        if id_key not in rec or score_key not in rec:
+            continue
+        try:
+            v = to_score(rec[score_key])
+        except (TypeError, ValueError):
+            skipped += 1                       # counted and reported, never silently dropped
+            continue
+        k = str(rec[id_key])
+        if k in rows:
+            dupes += 1
+        rows[k] = v
+    if skipped:
+        print("  NOTE: %s — %d record(s) had an unparseable %s and were excluded"
+              % (os.path.basename(path), skipped, score_key), file=sys.stderr)
     if not rows:
         raise ValueError("%s: no usable records" % path)
     return rows, dupes, score_key
@@ -140,7 +203,13 @@ def cmd_compare(a):
 
     if lo > 0 or hi < 0:
         print("\nSIGNIFICANT: the 95%% CI excludes zero. Delta %+.4f is above this design's noise." % d)
-        print("Still report n, the CI and the flip rate alongside the number.")
+        if abs(d) < this_mde:
+            print("CAUTION: the delta (%+.4f) is SMALLER than this design's MDE (%+.4f). That is not a\n"
+                  "contradiction — MDE is the effect this design detects 80%% of the time, and you can\n"
+                  "clear the CI below it — but it is exactly the profile of a result that fails to\n"
+                  "replicate: an effect this size lands inside the CI on a rerun roughly as often as\n"
+                  "not. Replicate before this becomes a claim." % (d, this_mde))
+        print("Report n, the CI and the flip rate alongside the number.")
         return 1
     print("\nUNDERPOWERED / NULL: the 95%% CI spans zero, so this run cannot distinguish "
           "%+.4f from no difference." % d)

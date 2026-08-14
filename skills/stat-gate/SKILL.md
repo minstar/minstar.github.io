@@ -28,9 +28,19 @@ python3 ~/.claude/skills/stat-gate/assets/power.py floor run1.jsonl run2.jsonl r
 python3 ~/.claude/skills/stat-gate/assets/power.py design --sd 0.45 --target 0.02 --n 500
 ```
 
-Records are JSONL with an id (`id`/`task_id`/`question_id`/`idx`) and a score (`correct`/`score`/
-`em`/`pass`/`reward`/`acc`), auto-detected. Exit `1` = SIGNIFICANT (the case that changes what you
-do next), `0` = a verdict was produced, `2` = inputs unusable.
+**Input**: JSONL, a JSON array, or a JSON summary document with a per-item list (`results`/`items`/
+`records`/`predictions`/`samples`) — the shape real harnesses actually write. Each record needs an
+id (`id`/`task_id`/`question_id`/`idx`) and a score (`correct`/`score`/`em`/`pass`/`reward`/`acc`),
+auto-detected. Booleans written as the **strings** `"True"`/`"False"` are handled, because that is
+what the harness emits.
+
+**A missing score is not a zero.** Empty/`null` score cells are excluded and counted, never scored
+as incorrect — silently converting missing to wrong biases the arm downward, which is the same
+under-report trap that makes a broken cost recorder report a comfortable number. The exclusion count
+prints to stderr; if it is large, fix the harness before trusting the comparison.
+
+Exit `1` = SIGNIFICANT (the case that changes what you do next), `0` = a verdict was produced,
+`2` = inputs unusable.
 
 ## The three questions
 
@@ -82,6 +92,14 @@ A number leaves this skill with four things attached, or it does not leave:
   construction of this skill's own test fixture: the tool was right and the test was wrong.)
 - **MDE is a property of the design, not the result.** If MDE is +5pp, a reported +2pp gain was
   never measurable, regardless of which way it came out.
+- **Significant *below* MDE is the replication-failure profile.** A delta can clear the 95% CI while
+  sitting under the design's MDE — not a contradiction (MDE is the 80%-power threshold), but an
+  effect that size lands inside the CI on a rerun about as often as not. The checker prints a
+  CAUTION for exactly this case. Two results can both read "SIGNIFICANT" while one is safe to build
+  on and the other needs a repeat; the point estimate alone does not distinguish them.
+- **Measure the floor per benchmark, not once.** On the same checkpoint, one benchmark's run-to-run
+  mean spread came in at 0.0101 and another's at 0.0030 — a 3× difference. A single global
+  `n_repeats` rule therefore over-spends on one and under-powers the other.
 - **Bootstrap seed is fixed** so a rerun reproduces the CI. If you change `--seed` and the verdict
   flips, the verdict was never stable — report that instead.
 - **`compare` refuses unpaired data.** No overlapping ids means the comparison is not interpretable;
