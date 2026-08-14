@@ -117,6 +117,13 @@ A skill is finished when:
   worthless; "X returned a different paper on 2026-08-13; fetch twice and diff" is a rule.
 - **There is a verification step before declaring done** — the standard from `CLAUDE.md` §4:
   prove it worked (test, log, diff), do not assert it.
+- **A checker is verified on REAL output, not only on fixtures you wrote.** A fixture you authored
+  matches the loader you authored, so passing it proves nothing. Every loader gets smoked against an
+  actual artifact from the pipeline before it ships — one that arrived in the wild found a JSON
+  wrapper, string booleans, and a missing-means-zero bug that three synthetic fixtures had missed.
+- **A checker's precision is its credibility.** After adding a check, take the items it flags and
+  re-verify each one independently. A pass that reports four false positives out of five findings
+  gets skipped by the third run, and then the one true finding is skipped with it.
 - **It says what NOT to do**, where an obvious-but-wrong path exists.
 - **Confidentiality is handled** where the skill produces anything public — no model framed as a
   teacher/judge/base, no private infra codenames.

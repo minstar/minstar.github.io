@@ -42,6 +42,17 @@ An entry cannot open without all four:
 - **Cost**: GPU-hours or $ estimate, and — for anything hitting a paid API — the ceiling at which
   you cancel.
 
+**Before registering anything, ask whether the quantity is already derivable from what is on disk.**
+A rescore, a stored run, a derived artifact — if the number can be computed, computing it is the
+honest move and registering it is self-deception dressed as rigour. This is not hypothetical: two
+predictions were registered on a campaign quantity that a rescored file already answered, and both
+were "scored" against data that had been sitting there the whole time. Run `ls` over the derived
+directories and try the computation once before writing a band.
+
+**And when you read a derived artifact, dump its field list first.** Rescored files routinely keep
+the original field name alongside the corrected one (`correct` next to `correct_strict`), so a
+familiar name can silently be the wrong quantity.
+
 If you cannot state the prediction, the experiment is not ready; the honest move is a cheap probe
 first. **A run with no prior prediction can still be recorded, but mark it `exploratory` — it does
 not get to claim confirmation afterwards.** Post-hoc prediction is how a pipeline convinces itself
