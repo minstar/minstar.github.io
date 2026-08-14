@@ -234,6 +234,35 @@ Refresh the corpus and catalog each run so the angles track his live trajectory,
   fix is to copy the workflow, edit the inlined `SOURCES`/`LENS` consts, and run with `scriptPath`
   and no `args` (the asset now takes `args` only as a crash-proof best-effort override). Independently:
   keep the lens **pure ASCII** (prod/pi/*/->/s0, no subscripts or curly quotes) regardless of channel.
+- **Discovery snippets are leads, not facts — the `hint` must say so.** In the 2026-08-14 run, the
+  WebSearch summaries for a model card supplied three numbers that the card does not contain at all:
+  a "500K context window" (zero hits for any context-length figure), a "February 1, 2026 cutoff" (the
+  card says January 2026), and an "Artificial Analysis Intelligence Index" score (the card reports
+  only AA GDPVal and AA Briefcase Elo). All three would have been published verbatim if the `hint`
+  had asserted them. So: when writing a `hint` from discovery, phrase every searched-up number as
+  something **to check against the source and report either way** ("press coverage claims X — verify
+  against the card and report what it does and does not contain"), never as an established fact. Fold
+  the reader's `uncertain` list into the entry when it says the brief was wrong — that is the check
+  working, not noise.
+- **Give each agent its own fetch directory, and checksum around every extraction.** Three verifiers
+  in the same run independently caught locally cached files being **replaced in place with a different
+  paper** mid-session — a PDF growing from 664,828 to 757,726 bytes with a new md5 while *keeping its
+  original mtime*, an `abs.html` whose `citation_title` changed to another arXiv id, and one
+  `pdftotext` run that caught the swap mid-write and emitted a file whose first ~480 lines were one
+  paper and the rest another. Every fresh fetch of the live URL returned the correct paper (5x, byte-
+  identical), so this is **concurrent agents colliding on generic scratch filenames** (`p1.pdf`,
+  `abs1.html`, `tr.pdf`), not an arXiv fault. Two consequences: (1) each agent must fetch into a
+  private per-agent subdirectory with a unique prefix — never a shared scratch path with a generic
+  name; (2) record the artifact's md5 immediately after download and re-verify it immediately before
+  **and** after every extraction, discarding any analysis whose pre/post hashes differ. Note this
+  failure is invisible to the "fetch twice and diff" rule, which only compares *network* responses.
+- **Never publish agent-process detail.** The same incident produced reader bullets like "the shared
+  scratchpad is being written concurrently by other agents and my first extraction was silently
+  overwritten." That is internal tooling state, useless to a reader, and it reads as doubt about the
+  entry it is attached to. Strip it at compose time; if provenance is worth stating at all, state it
+  reader-facing ("identity confirmed against the abs-page metadata, the rendered cover, and the arXiv
+  API"). Relatedly, do not publish a reader's claim that a URL served the wrong paper unless the
+  verifier reproduced it — in this run two such claims did not reproduce on independent re-fetch.
 - **Keep the lens current.** Rebuild it from `notes/*.md` each run so connections track his live work.
 - **master is the deploy branch.** Commit directly to `master`; do not open a feature branch.
 
