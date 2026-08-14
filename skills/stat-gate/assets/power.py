@@ -41,7 +41,16 @@ SCORE_KEYS = ("correct", "score", "em", "exact_match", "pass", "passed", "reward
 # if two arms differ in how often they produce one, the comparison is partly a format-compliance
 # contest. Detected by default on whatever free-text answer field is present.
 ANSWER_FIELDS = ("submitted", "prediction", "response", "output", "answer", "generation")
-DEGENERATE_RX = re.compile(r"<tool_call>|<function=|^\s*$", re.I)
+# Two tool-call encodings reach the answer field, and missing either UNDER-counts non-response on
+# exactly the arms that use it. The XML form covers most arms; a base-model arm emitted the JSON form
+# instead, which took its measured non-response from 1.3% to 8.5% once counted. Because the encoding
+# is arm-specific, an incomplete detector understates the gap on precisely the comparison that needs
+# it. Keep the JSON pattern tight — `{"name": ..., "arguments": ...}` — so a legitimate JSON answer
+# is not swept up.
+DEGENERATE_RX = re.compile(
+    r"<tool_call>|<function=|^\s*$"
+    r'|^\s*\{\s*"(?:name|function|tool_name)"\s*:\s*"[^"]+"\s*,\s*"(?:arguments|parameters)"\s*:',
+    re.I)
 
 Z_CI = 1.96      # two-sided 95%
 Z_POWER = 0.84   # 80% power
@@ -252,23 +261,39 @@ def cmd_compare(a):
             print("\n  WARNING: the arms differ by %.1fpp in how often they emit something that cannot be an\n"
                   "  answer. Those score wrong automatically, so part of the delta above is format\n"
                   "  compliance, not capability." % (100 * abs(rb - ra)))
+            # Worst/best-case bounds over the unanswered items (Manski-style). Non-answers score
+            # wrong as measured, so the observed delta is already the "all non-answers wrong" corner;
+            # the opposite corner assigns them all correct. Together they bracket what the delta
+            # could become if extraction were fixed, WITHOUT conditioning on anything post-treatment.
+            lo_d = mean([(1.0 if flagB.get(k) else B[k]) - (0.0 if flagA.get(k) else A[k])
+                         for k in both])
+            hi_d = mean([(0.0 if flagB.get(k) else B[k]) - (1.0 if flagA.get(k) else A[k])
+                         for k in both])
+            print("  Bounds over the unanswered items (no post-treatment conditioning):\n"
+                  "      delta lies in [%+.4f, %+.4f] once every non-answer is resolved either way"
+                  % (min(lo_d, hi_d), max(lo_d, hi_d)))
             if len(clean) >= 30:
                 cd = [B[k] - A[k] for k in clean]
                 cl, ch = paired_bootstrap(cd, a.iters, a.seed)
-                print("  On the %d item(s) where BOTH arms actually answered:\n"
-                      "      delta %+.4f   95%% CI [%+.4f, %+.4f]   (vs %+.4f overall)"
-                      % (len(clean), mean(cd), cl, ch, d))
-                print("  Read that as the capability side. It conditions on an outcome-correlated\n"
-                      "  variable, so it is a decomposition rather than a bias-free estimate — but a\n"
-                      "  delta that vanishes here was not measuring capability.")
-                confounded = (cl <= 0 <= ch)          # clean CI spans zero -> headline was format
+                print("  Among the %d item(s) where both arms answered: delta %+.4f [%+.4f, %+.4f]"
+                      % (len(clean), mean(cd), cl, ch))
+                print("  CAUTION: that subset conditions on a POST-TREATMENT variable — answering is\n"
+                      "  itself affected by the arm — so the two sides are different populations and\n"
+                      "  a null there is NOT evidence of no capability effect. Use it to describe,\n"
+                      "  never to refute. The bracket above is the quantity that bounds the truth.")
+                # Only claim confounding when the bounds themselves cannot exclude zero.
+                confounded = (min(lo_d, hi_d) <= 0 <= max(lo_d, hi_d))
             else:
                 print("  Too few items where both arms answered (%d) to re-estimate." % len(clean))
+                confounded = (min(lo_d, hi_d) <= 0 <= max(lo_d, hi_d))
 
     if (lo > 0 or hi < 0) and confounded:
-        print("\nCONFOUNDED: the headline delta %+.4f clears the CI, but it disappears once both arms are\n"
-              "required to have produced an answer. What was measured is format compliance, not\n"
-              "capability. Do not report the headline number; fix answer extraction and re-run." % d)
+        print("\nDIFFERENTIAL NON-RESPONSE: the headline delta %+.4f is a valid TOTAL effect, but the arms\n"
+              "differ in how often they answer at all, and once the unanswered items are resolved either\n"
+              "way the delta can cross zero. So the headline is real and reportable as an effect on\n"
+              "answer COMMITMENT — it is not a capability delta, and it is not refuted either. Report\n"
+              "the non-response gap as the finding, fix extraction, and re-run before claiming a\n"
+              "capability effect in either direction." % d)
         return 0
     if lo > 0 or hi < 0:
         print("\nSIGNIFICANT: the 95%% CI excludes zero. Delta %+.4f is above this design's noise." % d)
