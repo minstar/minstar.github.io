@@ -45,7 +45,19 @@ class Ctx:
                 continue
             m = re.match(r"(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$", s)
             if m:
-                val = m.group(2).strip().strip('"').strip("'")
+                raw_val = m.group(2).strip()
+                # `VAR=x command ...` is a bash env-prefix, not a script-level assignment —
+                # collecting it poisons the table (e.g. RM_PATH="${RM_PATH}" PYTHONPATH=... python
+                # swallowed the rest of the line as RM_PATH's value).
+                if re.match(r"""^("[^"]*"|'[^']*'|[^\s"']+)\s+\S""", raw_val):
+                    continue
+                val = raw_val.strip('"').strip("'")
+                # env-overridable default, VAR=${VAR:-default}: for static analysis the value IS
+                # the default (EXP-001 — RM_PATH=${RM_PATH:-pkg.mod.fn} must resolve to a literal
+                # so module-refs can check the module it names actually exists).
+                d = re.match(r"\$\{%s:-(.*)\}$" % re.escape(m.group(1)), val)
+                if d:
+                    val = d.group(1).strip('"').strip("'")
                 v[m.group(1)] = val
         # one-level-at-a-time expansion, bounded
         for _ in range(4):
@@ -180,8 +192,9 @@ def check_paths_exist(c):
                 if not raw.endswith("/"):
                     continue
             p = raw.rstrip("/\\").rstrip(";,:)]}\"'")
-            # `%x`/`%j`/`%A` are Slurm substitutions filled in at dispatch, not paths that exist now.
-            if not p or "$" in p or "*" in p or "?" in p or "%" in p or p in seen:
+            # `%x`/`%j`/`%A` are Slurm substitutions filled in at dispatch, not paths that exist
+            # now; `{name}` is a runtime format template (e.g. --save-hf .../rollout-{rollout_id}).
+            if not p or "$" in p or "*" in p or "?" in p or "%" in p or "{" in p or p in seen:
                 continue
             seen.add(p)
             cands.append((i, p))
@@ -282,7 +295,7 @@ def check_referenced_scripts(c):
 
 
 MODULE_ARG = re.compile(
-    r"(?:-m|--custom[-_]rm[-_]path|--rm[-_]module|--reward[-_]module|--rm[-_]path)"
+    r"(-m|--custom[-_]rm[-_]path|--rm[-_]module|--reward[-_]module|--rm[-_]path)"
     r"\s+['\"]?([A-Za-z_][\w]*(?:\.[A-Za-z_]\w*)+)")
 SCRIPT_ARG = re.compile(r"(?<![\w/.-])([A-Za-z_][\w.-]*/[\w./-]+\.py)")
 
@@ -302,6 +315,9 @@ def check_python_module_refs(c):
             if part and not part.startswith("$") and os.path.isdir(part):
                 roots.append(part)
     roots.append(os.path.dirname(os.path.abspath(c.path)))
+    # a submit script living INSIDE its package (<rl-run>_stop/run_*.slurm referencing
+    # <rl-run>_stop.rm_*) imports relative to the package's parent at runtime
+    roots.append(os.path.dirname(os.path.dirname(os.path.abspath(c.path))))
     roots = list(dict.fromkeys(roots))
 
     refs = []                                    # (lineno, raw, kind)
@@ -311,7 +327,9 @@ def check_python_module_refs(c):
             continue
         e = Ctx.expand(ln, c.vars)
         for m in MODULE_ARG.finditer(e):
-            refs.append((i, m.group(1), "module"))
+            # -m names a module; the rm/reward flags name module.attr (slime convention), so the
+            # import target is the PARENT of the last component.
+            refs.append((i, m.group(2), "module" if m.group(1) == "-m" else "module_attr"))
         if re.search(r"\bpython3?\b|\$ENVPY|\bsrun\b|\btorchrun\b", e):
             for m in SCRIPT_ARG.finditer(e):
                 p = m.group(1)
@@ -324,9 +342,13 @@ def check_python_module_refs(c):
     for lineno, raw, kind in refs:
         if "$" in raw:
             continue                             # unexpanded template — cannot verify, do not claim
-        rels = [raw.replace(".", os.sep) + ".py"] if kind == "module" else [raw]
-        if kind == "module":
-            rels.append(raw.replace(".", os.sep))          # package dir with __init__.py
+        if kind == "script":
+            rels = [raw]
+        else:
+            rels = [raw.replace(".", os.sep) + ".py",
+                    raw.replace(".", os.sep)]              # package dir with __init__.py
+            if kind == "module_attr" and "." in raw:       # pkg.module.attr -> pkg/module.py
+                rels.append(raw.rsplit(".", 1)[0].replace(".", os.sep) + ".py")
         if not any(os.path.exists(os.path.join(rt, rel)) for rt in roots for rel in rels):
             missing.append((lineno, raw, kind))
 

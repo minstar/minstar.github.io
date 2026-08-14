@@ -41,6 +41,13 @@ SCORE_KEYS = ("correct", "score", "em", "exact_match", "pass", "passed", "reward
 # if two arms differ in how often they produce one, the comparison is partly a format-compliance
 # contest. Detected by default on whatever free-text answer field is present.
 ANSWER_FIELDS = ("submitted", "prediction", "response", "output", "answer", "generation")
+# A harness that records WHY there is no answer beats any pattern over the answer string. When
+# `answer_source` is present, "none" is authoritative and the regex is not consulted — that removes
+# the encoding-specific blind spot that once under-counted one arm at 1.3% when it was 8.5%. The
+# pattern below stays as the fallback for files written before the field existed; keep its
+# definition in step with the harness-side NON_ANSWER predicate (XML | JSON-form | empty).
+SOURCE_FIELDS = ("answer_source",)
+NO_ANSWER_VALUES = {"none", "no_answer", "null", "", "missing"}
 # Two tool-call encodings reach the answer field, and missing either UNDER-counts non-response on
 # exactly the arms that use it. The XML form covers most arms; a base-model arm emitted the JSON form
 # instead, which took its measured non-response from 1.3% to 8.5% once counted. Because the encoding
@@ -124,7 +131,7 @@ def _records(path):
 
 def load(path):
     """({id: score}, dupes, score_key, {id: degenerate?}) from JSONL or a JSON results file."""
-    rows, flags, id_key, score_key, ans_key = {}, {}, None, None, None
+    rows, flags, id_key, score_key, ans_key, src_key = {}, {}, None, None, None, None
     dupes = skipped = 0
     for rec in _records(path):
         if not isinstance(rec, dict):
@@ -133,6 +140,7 @@ def load(path):
             id_key = next((k for k in ID_KEYS if k in rec), None)
             score_key = next((k for k in SCORE_KEYS if k in rec), None)
             ans_key = next((k for k in ANSWER_FIELDS if k in rec), None)
+            src_key = next((k for k in SOURCE_FIELDS if k in rec), None)
             if id_key is None or score_key is None:
                 raise ValueError("%s: cannot find an id field %s and a score field %s in %r"
                                  % (os.path.basename(path), ID_KEYS, SCORE_KEYS, sorted(rec)[:10]))
@@ -147,7 +155,9 @@ def load(path):
         if k in rows:
             dupes += 1
         rows[k] = v
-        if ans_key is not None and ans_key in rec:
+        if src_key is not None and src_key in rec:
+            flags[k] = str(rec[src_key]).strip().lower() in NO_ANSWER_VALUES
+        elif ans_key is not None and ans_key in rec:
             flags[k] = bool(DEGENERATE_RX.search(str(rec[ans_key])))
     if skipped:
         print("  NOTE: %s — %d record(s) had an unparseable %s and were excluded"
