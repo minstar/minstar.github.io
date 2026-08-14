@@ -132,6 +132,7 @@ def _records(path):
 def load(path):
     """({id: score}, dupes, score_key, {id: degenerate?}) from JSONL or a JSON results file."""
     rows, flags, id_key, score_key, ans_key, src_key = {}, {}, None, None, None, None
+    used_src = False
     dupes = skipped = 0
     for rec in _records(path):
         if not isinstance(rec, dict):
@@ -157,6 +158,7 @@ def load(path):
         rows[k] = v
         if src_key is not None and src_key in rec:
             flags[k] = str(rec[src_key]).strip().lower() in NO_ANSWER_VALUES
+            used_src = True
         elif ans_key is not None and ans_key in rec:
             flags[k] = bool(DEGENERATE_RX.search(str(rec[ans_key])))
     if skipped:
@@ -164,6 +166,14 @@ def load(path):
               % (os.path.basename(path), skipped, score_key), file=sys.stderr)
     if not rows:
         raise ValueError("%s: no usable records" % path)
+    if flags and not used_src:
+        # Reciprocal integrity rule: falling back to the pattern is fine for pre-2026-08-14 files,
+        # but on a post-fix run it means the file was NOT written by the intended extraction. Saying
+        # so is my half of the contract — the other half is the harness flagging empty summary
+        # fields. A silent fallback would let a mis-extracted arm be scored as if it were clean.
+        print("  NOTE: %s has no `answer_source` — non-response inferred from the answer string "
+              "(approximate). If this is a post-fix run, the file did not get the intended "
+              "extraction." % os.path.basename(path), file=sys.stderr)
     return rows, dupes, score_key, flags
 
 
