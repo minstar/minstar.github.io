@@ -41,6 +41,21 @@ Exit `0` = clear to submit · `1` = at least one FAIL (or a WARN under `--strict
 - **A check that errors reports SKIP with the exception**, never PASS. A checker that lies about
   coverage is worse than no checker, because it stops you looking.
 
+## It runs automatically on `sbatch`
+
+`assets/sbatch_hook.sh` is wired into `settings.json` as a `PreToolUse(Bash)` hook. Any command
+containing `sbatch` has its script pre-flighted first; a **FAIL blocks the submission** and prints
+the failing checks, WARNs are printed without blocking.
+
+This exists because the checks were never the gap — *running* them was. 80 eval submissions died on
+a missing data directory that `paths-exist` catches in 200ms, because eval and serve scripts were
+being submitted without the gate that training scripts went through. A habit you have to remember is
+not a gate.
+
+The hook **fails open**: anything it cannot evaluate (no script found, checker error, unreadable
+file) is allowed through. A gate that blocks on its own confusion gets disabled within a day, and
+then nothing is checked at all.
+
 ## What it checks, and why each is there
 
 | Check | Level | The failure it encodes |

@@ -89,6 +89,11 @@ class Ctx:
         return out
 
     def is_training(self):
+        # Serving takes precedence. An eval/serve script routinely names training artifacts
+        # (checkpoint dirs like `..._grpo_...`, `..._sft_...`), and demanding the training env of
+        # it is a false positive — the first one the hook surfaced on a real script.
+        if self.is_serving():
+            return False
         return any(h in self.low for h in TRAIN_HINTS)
 
     def is_serving(self):
@@ -163,9 +168,20 @@ def check_paths_exist(c):
         s = ln.strip()
         if s.startswith("#") and not s.startswith("#SBATCH"):
             continue
-        for p in PATH_RX.findall(Ctx.expand(ln, c.vars)):
-            p = p.rstrip("/\\")
-            if "$" in p or "*" in p or "?" in p or p in seen:
+        expanded = Ctx.expand(ln, c.vars)
+        for m in PATH_RX.finditer(expanded):
+            raw = m.group(1)
+            nxt = expanded[m.end():m.end() + 1]
+            if nxt in ("$", "{"):
+                # A variable follows. `.../chunks/$BENCH` still asserts that `.../chunks` exists —
+                # keep the complete directory. `.../ckpt_${NAME}` does not assert anything about a
+                # partial filename stem — drop it. Getting this backwards costs a real finding in
+                # one direction and credibility in the other.
+                if not raw.endswith("/"):
+                    continue
+            p = raw.rstrip("/\\").rstrip(";,:)]}\"'")
+            # `%x`/`%j`/`%A` are Slurm substitutions filled in at dispatch, not paths that exist now.
+            if not p or "$" in p or "*" in p or "?" in p or "%" in p or p in seen:
                 continue
             seen.add(p)
             cands.append((i, p))
