@@ -48,17 +48,28 @@ def squeue_jobs():
 
 
 def loops():
-    out = sh("ps -eo pid,etime,args")
+    """Supervisor loops belonging to THIS user only.
+
+    `ps -eo` lists every user on the node. An earlier version used it and surfaced a colleague's
+    11-day watcher as if it were ours — a report that invited killing someone else's live process.
+    Scope to $USER, and carry the owner in the record so the output can never be misread again.
+    """
+    if not USER:
+        return []
+    out = sh("ps -u %s -o pid=,user=,etime=,args=" % USER)
     found = []
-    for ln in out.splitlines()[1:]:
-        parts = ln.strip().split(None, 2)
-        if len(parts) < 3:
+    for ln in out.splitlines():
+        parts = ln.strip().split(None, 3)
+        if len(parts) < 4:
             continue
-        pid, etime, cmd = parts
+        pid, user, etime, cmd = parts
+        if user != USER:                          # belt and braces
+            continue
         if AGENT_NOISE.search(cmd) or not LOOP_PAT.search(cmd):
             continue
         m = LOOP_PAT.search(cmd)
-        found.append({"pid": pid, "etime": etime, "script": m.group(0), "cmd": cmd[:180]})
+        found.append({"pid": pid, "user": user, "etime": etime,
+                      "script": m.group(0), "cmd": cmd[:180]})
     return found
 
 
@@ -75,37 +86,79 @@ def history(name, since):
     return rows
 
 
+def elapsed_secs(s):
+    """`[DD-]HH:MM:SS` or `MM:SS` -> seconds; None if unparseable."""
+    try:
+        days = 0
+        if "-" in s:
+            d, s = s.split("-", 1)
+            days = int(d)
+        parts = [int(x) for x in s.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0)
+        return days * 86400 + parts[0] * 3600 + parts[1] * 60 + parts[2]
+    except (ValueError, AttributeError):
+        return None
+
+
+def deterministic(fails):
+    """A failure cluster is deterministic when the attempts are IDENTICAL, not when they are fast.
+
+    The first version keyed only on `elapsed < 10s`, and called a job HEALTHY that had failed 40
+    times with zero completions — because each attempt booted a vLLM server for ~95s before hitting
+    a missing data directory. Duration is a property of how far the job gets before the same wall;
+    what marks determinism is that every attempt hits the same wall the same way.
+    """
+    if len(fails) < 3:
+        return False, ""
+    exits = {x["exit"] for x in fails}
+    if len(exits) != 1:
+        return False, ""
+    secs = [e for e in (elapsed_secs(x["elapsed"]) for x in fails) if e is not None]
+    if len(secs) < 3:
+        return False, ""
+    lo, hi, mid = min(secs), max(secs), sorted(secs)[len(secs) // 2]
+    if hi - lo <= max(10, 0.25 * max(mid, 1)):
+        return True, ("%d attempts, identical exit %s, elapsed %ds-%ds (no spread)"
+                      % (len(fails), exits.pop(), lo, hi))
+    return False, ""
+
+
 def classify(name, rows):
     """Verdict for one job name over its recent history."""
     if not rows:
         return {"verdict": "NEW", "detail": "no terminal states in window", "counts": {}}
-    fast = [x for x in rows if x["state"] == "FAILED" and FAST.match(x["elapsed"])]
+    fails = [x for x in rows if x["state"] == "FAILED"]
+    fast = [x for x in fails if FAST.match(x["elapsed"])]
     comp = [x for x in rows if x["state"] == "COMPLETED"]
     pre = [x for x in rows if x["state"] in ("PREEMPTED", "CANCELLED", "NODE_FAIL", "TIMEOUT")]
-    slow_fail = [x for x in rows if x["state"] == "FAILED" and not FAST.match(x["elapsed"])]
-    counts = {"fast_fail": len(fast), "completed": len(comp),
-              "preempt_or_timeout": len(pre), "slow_fail": len(slow_fail), "total": len(rows)}
+    counts = {"fast_fail": len(fast), "completed": len(comp), "preempt_or_timeout": len(pre),
+              "slow_fail": len(fails) - len(fast), "total": len(rows)}
 
-    # The signature that matters: the most recent attempts are ALL deterministic fast-fails.
-    tail = rows[-4:] if len(rows) >= 4 else rows
-    tail_fast = [x for x in tail if x["state"] == "FAILED" and FAST.match(x["elapsed"])]
-    if len(tail_fast) >= 2 and len(tail_fast) == len(tail):
-        exits = {x["exit"] for x in tail_fast}
-        return {"verdict": "FUTILE", "counts": counts,
-                "detail": "last %d attempts all failed in <10s (exit %s) — deterministic; "
-                          "retrying cannot clear it" % (len(tail_fast), ",".join(sorted(exits)))}
-    if len(fast) >= 5 and not comp:
-        return {"verdict": "FUTILE", "counts": counts,
-                "detail": "%d fast-fails and no completion in window" % len(fast)}
-    if len(fast) >= 5 and comp:
+    det, why = deterministic(fails)
+
+    # Nothing is landing. This dominates every other reading.
+    if fails and not comp:
+        d = ("deterministic — %s; retrying cannot clear it" % why) if det else \
+            ("%d failure(s), zero completions in window" % len(fails))
+        return {"verdict": "FUTILE", "counts": counts, "detail": d}
+
+    # Work is landing, but a repeated identical failure is also being resubmitted — the one that
+    # hides, because the completions make the arm look fine.
+    if det and comp:
         return {"verdict": "WASTEFUL", "counts": counts,
-                "detail": "%d fast-fails alongside %d completion(s) — real work is landing, but a "
-                          "deterministic error is being resubmitted" % (len(fast), len(comp))}
-    if len(pre) >= 1 and not fast:
+                "detail": "%s, alongside %d completion(s) — real work is landing while a "
+                          "deterministic error is resubmitted" % (why, len(comp))}
+    if len(fails) >= 5 and comp:
+        return {"verdict": "WASTEFUL", "counts": counts,
+                "detail": "%d failures alongside %d completion(s) — check whether one cause repeats"
+                          % (len(fails), len(comp))}
+    if pre and not fails:
         return {"verdict": "HEALTHY", "counts": counts,
-                "detail": "%d preemption/timeout — expected on a preemptible partition" % len(pre)}
+                "detail": "%d preemption/timeout, no failures — expected on a preemptible partition"
+                          % len(pre)}
     return {"verdict": "HEALTHY", "counts": counts,
-            "detail": "%d completed, %d fast-fail" % (len(comp), len(fast))}
+            "detail": "%d completed, %d failure(s)" % (len(comp), len(fails))}
 
 
 def main():
