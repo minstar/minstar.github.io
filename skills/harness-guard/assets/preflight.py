@@ -174,13 +174,26 @@ def check_conda_env(c):
 PATH_RX = re.compile(r"(/(?:data|mnt|home|scratch|shared|opt)/[^\s'\"`:,)\]}$]+)")
 
 
+# A path that appears ONLY inside a shell existence test is being probed, not consumed: its
+# absence is the branch condition, not a stale reference. Every slime resume launcher does
+# `[ -f "$LOAD_DIR/latest_checkpointed_iteration.txt" ]` to pick fresh-vs-resume, and flagging
+# that as a missing input made the checker cry wolf on a correct script (2026-08-15, the
+# <monorepo> A/B/C launchers). A path used in a test AND consumed elsewhere still gets flagged.
+GUARD_RX = re.compile(r"(?:\[\[?\s*!?\s*-[a-zA-Z]\s|\btest\s+!?\s*-[a-zA-Z]\s)")
+
+
 def check_paths_exist(c):
     cands, seen = [], set()
+    guarded, consumed = set(), set()
     for i, ln in enumerate(c.lines, 1):
         s = ln.strip()
         if s.startswith("#") and not s.startswith("#SBATCH"):
             continue
         expanded = Ctx.expand(ln, c.vars)
+        is_guard = bool(GUARD_RX.search(expanded))
+        for m in PATH_RX.finditer(expanded):
+            _p = m.group(1).rstrip("/\\").rstrip(";,:)]}\"'")
+            (guarded if is_guard else consumed).add(_p)
         for m in PATH_RX.finditer(expanded):
             raw = m.group(1)
             nxt = expanded[m.end():m.end() + 1]
@@ -204,6 +217,8 @@ def check_paths_exist(c):
     # a path the script itself creates is not an error
     missing = [(i, p) for i, p in missing
                if not re.search(r"mkdir\s+(-p\s+)?[^\n]*%s" % re.escape(p), c.text)]
+    # nor is one that is only ever probed by an existence test (see GUARD_RX)
+    missing = [(i, p) for i, p in missing if not (p in guarded and p not in consumed)]
     if missing:
         ev = "; ".join("L%d: %s" % (n, p) for n, p in missing[:6])
         return r("paths-exist", FAIL, "%d referenced path(s) do not exist" % len(missing), ev,
@@ -450,10 +465,55 @@ def check_arm_consistency(c):
              "identity vars agree with filename arm token(s): %s" % "/".join(sorted(fname_cores)))
 
 
+RAY_SHELL_META_RX = re.compile(r"<\||\|>")
+
+
+def check_ray_argv_shell(c):
+    """`ray job submit -- <argv>` does NOT exec argv.
+
+    Ray re-joins the entrypoint with subprocess.list2cmdline — the WINDOWS quoting function,
+    which quotes only on whitespace — and the job manager runs the result under /bin/sh
+    (ray/dashboard/modules/job/cli.py:313). Any value carrying POSIX shell metacharacters and no
+    spaces therefore reaches sh RAW. Installed 2026-08-15 after jobs 68024/68025/68026 all died
+    in under 60s on `--rollout-stop <|im_end|>` -> "/bin/sh: 1: Syntax error: | unexpected",
+    which fires AFTER ray accepts the job and after the whole Ray/Megatron bring-up. The same
+    path silently eats backslashes: `self_attention\\.` arrives as `self_attention.`, a regex
+    whose dot matches any character.
+
+    Quoting cannot be judged by eye here — `"${VAR:-'<|x|>'}"` is safe and `'<|x|>'` is not, and
+    shlex-based round-trip checks pass on the argv that kills the job. So this does not try to
+    prove the quoting; it requires the script to run the /bin/sh oracle at launch
+    (``argv_survives_ray_shell``, <monorepo>_rl/lib_argv_guard.sh), or to say out loud that it
+    has been checked with ``# preflight: argv-guarded``.
+    """
+    # The invocation is rarely the literal `ray job submit` — the launchers here call
+    # `"${RAY_BIN}" job submit` / `${VENV}/bin/ray job submit`, so anchor on `job submit`
+    # plus any mention of ray rather than on the three-word form.
+    if not (c.grep(r"\bjob\s+submit\b") and c.grep(r"(?i)\bray\b")):
+        return r("ray-argv-shell", SKIP, "no ray job submission in this script")
+    hits = [(i, ln.strip()[:90]) for i, ln in enumerate(c.lines, 1)
+            if RAY_SHELL_META_RX.search(ln) and not ln.strip().startswith("#")]
+    if not hits:
+        return r("ray-argv-shell", SKIP, "no shell-metacharacter argument values found")
+    if c.grep(r"argv_survives_ray_shell") or c.grep(r"#\s*preflight:\s*argv-guarded"):
+        return r("ray-argv-shell", PASS,
+                 "%d metachar arg(s), guarded by the /bin/sh round-trip check" % len(hits))
+    ev = "; ".join("L%d: %s" % (n, s) for n, s in hits[:4])
+    return r("ray-argv-shell", FAIL,
+             "%d ray-entrypoint arg(s) carry shell metacharacters with no argv guard" % len(hits),
+             ev,
+             "ray joins argv with list2cmdline and runs it under /bin/sh, so `<|im_end|>` becomes "
+             "a redirect+pipe and the job dies ~40s in. Source "
+             "<monorepo>_rl/lib_argv_guard.sh and call `argv_survives_ray_shell "
+             "\"${TRAIN_ARGV[@]}\" || exit 1` before `ray job submit`, passing protected values "
+             "with LITERAL single quotes (--rollout-stop \"'<|im_end|>'\"). If you have verified "
+             "it another way, mark the script `# preflight: argv-guarded`.")
+
+
 CHECKS = [check_partition, check_shared_storage, check_conda_env, check_paths_exist,
           check_uv_cache, check_flashinfer, check_rocr, check_hf_home, check_requeue,
           check_serve_teardown, check_referenced_scripts, check_python_module_refs,
-          check_arm_consistency]
+          check_arm_consistency, check_ray_argv_shell]
 
 
 def main():
