@@ -361,9 +361,99 @@ def check_python_module_refs(c):
     return r("module-refs", PASS, "%d python reference(s) resolve" % len(refs))
 
 
+ARM_TOKEN = re.compile(r"(?<![a-z0-9])(<rl-run>[a-z0-9]+|v\d+[a-z]*)(?![a-z0-9])")
+IDENTITY_VARS = ("ARM", "MODEL", "MODEL_OVERRIDE", "CKPT_DIR", "SAVE_DIR", "WANDB_GROUP",
+                 "HF_DIR", "JOBNAME")
+WAIVER = "# preflight: allow-cross-arm"
+UNEXPANDED = re.compile(r"\$\{[^}]*\}|\$[A-Za-z_]\w*")
+
+
+def _arm_cores(s):
+    """Boundary-delimited arm tokens, normalized to their version core.
+
+    `<rl-run>v36` and `v36` are the same arm; `v36` and `v36s` are NOT — that one-letter
+    difference is the entire EXP-012d incident. Arm suffixes in this codebase are 0-2 letters
+    (v36s, v33t); a 3+-letter tail is a glued-on word, not an arm (`v36cen` = census OF v36,
+    `v2ckpt` = v2 checkpoint), so long tails are stripped back to the bare version.
+    """
+    cores = set()
+    for tok in ARM_TOKEN.findall(s.lower()):
+        m = re.search(r"(v\d+)([a-z]*)$", tok)
+        if m:
+            cores.add(m.group(1) if len(m.group(2)) >= 3 else m.group(0))
+        else:
+            cores.add(tok)
+    return cores
+
+
+def check_arm_consistency(c):
+    """A sed-cloned script that kept the donor's identity vars measures the WRONG arm.
+
+    Incident (EXP-012d, 2026-08-15): probe_v36s_sentinel.slurm was cloned from the v36 probe
+    and kept ARM=<rl-run>v36 — three sentinel probes served and measured the v36 model's
+    weights while reporting as v36s, and a training run was halted on that false evidence.
+    The filename said v36s; the identity vars said v36; nothing compared them. This does.
+
+    Waive a deliberate cross-arm reference with `# preflight: allow-cross-arm` on the line
+    (or on its own line to waive the whole file).
+    """
+    fname_cores = _arm_cores(os.path.splitext(os.path.basename(c.path))[0])
+    if not fname_cores:
+        return r("arm-consistency", SKIP, "filename carries no arm/version token")
+    if any(ln.strip() == WAIVER for ln in c.lines):
+        return r("arm-consistency", SKIP, "waived file-wide by '%s'" % WAIVER)
+
+    targets = []                                             # (lineno, label, raw_value)
+    var_rx = re.compile(r"(?:export\s+)?(%s)=(.*)$" % "|".join(IDENTITY_VARS))
+    for i, ln in enumerate(c.lines, 1):
+        s = ln.strip()
+        if s.startswith("#") and not s.startswith("#SBATCH"):
+            continue
+        if s.startswith("#SBATCH"):
+            m = re.search(r"(?:-J|--job-name)[=\s]+(\S+)", s)
+            if m:
+                targets.append((i, "job-name", m.group(1)))
+            continue
+        m = var_rx.match(s)
+        if m:
+            val = m.group(2).strip().strip('"').strip("'")
+            d = re.match(r"\$\{%s:-(.*)\}$" % m.group(1), val)   # VAR=${VAR:-default} -> default
+            if d:
+                val = d.group(1).strip('"').strip("'")
+            targets.append((i, m.group(1), val))
+        for jm in re.finditer(r"\bsbatch\b[^\n]*?(?:-J|--job-name)[=\s]+[\"']?([A-Za-z0-9._$\{\}-]+)", s):
+            targets.append((i, "sbatch -J", jm.group(1)))
+
+    if not targets:
+        return r("arm-consistency", SKIP, "no identity-bearing assignments found")
+
+    bad = []
+    for i, label, raw in targets:
+        if WAIVER in c.lines[i - 1]:
+            continue
+        # expand what the script defines; blank out what stays unresolved so a template var
+        # can neither hide a stale literal token nor fabricate one across a join
+        val = UNEXPANDED.sub(" ", Ctx.expand(raw, c.vars))
+        cores = _arm_cores(val)
+        if cores and not (cores & fname_cores):
+            bad.append((i, label, raw, cores))
+    if bad:
+        ev = "; ".join("L%d: %s=%s carries %s, filename says %s"
+                       % (i, label, raw[:60], "/".join(sorted(k)), "/".join(sorted(fname_cores)))
+                       for i, label, raw, k in bad[:5])
+        return r("arm-consistency", FAIL,
+                 "identity var(s) carry a different arm than the filename", ev,
+                 "Cloned script kept the donor's identifiers (EXP-012d: three probes measured "
+                 "the wrong model's weights). Update ARM/MODEL/CKPT_DIR/... to match the "
+                 "filename's arm, or waive deliberately with '%s'." % WAIVER)
+    return r("arm-consistency", PASS,
+             "identity vars agree with filename arm token(s): %s" % "/".join(sorted(fname_cores)))
+
+
 CHECKS = [check_partition, check_shared_storage, check_conda_env, check_paths_exist,
           check_uv_cache, check_flashinfer, check_rocr, check_hf_home, check_requeue,
-          check_serve_teardown, check_referenced_scripts, check_python_module_refs]
+          check_serve_teardown, check_referenced_scripts, check_python_module_refs,
+          check_arm_consistency]
 
 
 def main():

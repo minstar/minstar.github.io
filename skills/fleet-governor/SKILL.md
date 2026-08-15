@@ -38,7 +38,7 @@ Exit `0` = nothing needs attention · `1` = at least one FUTILE / WASTEFUL / ORP
 | `HEALTHY` | completions, or preemptions with no fast-fails | Working as intended. Preemption on a preemptible partition is **normal and is not a result.** |
 | `WASTEFUL` | ≥5 fast-fails **alongside** completions | Real work is landing, but a deterministic error is also being resubmitted. The dangerous one — the completions make it look fine. |
 | `FUTILE` | last ≥2 attempts all failed <10s with the same exit code, or ≥5 fast-fails and zero completions | Deterministic. More retries cannot help. Stop the loop and read the log. |
-| `ORPHAN / STALE` | a supervisor loop matching no queued job, **or** alive ≥3 days | A watcher outliving its run, often from a session nobody remembers. |
+| `ORPHAN / STALE` | a loop with **no supervision evidence** — no declared-jobname/token/version link to a queued job, no recent job end, and no log line within its own poll window — or alive ≥3 days with none of the hard signals | A watcher outliving its run, often from a session nobody remembers. |
 
 **The fast-fail signature** is the load-bearing idea: `FAILED` + identical exit code + elapsed
 `00:00:0X`. A process that dies in two seconds never reached the work; it failed at import, at a
@@ -75,6 +75,16 @@ hours of elapsed time, so the two never collide.
   keep both; either alone misses cases.
 - **A loop taking its job name as an argument will not match on its filename.** Match on the whole
   command line; `autoretry.sh <name> ...` is the common shape here.
+- **Version-style arm names never survive word-token matching** (2026-08-15, three false orphan
+  flags in one morning). `v36` is 3 chars — under the 4-char tokenizer floor — and `v36s` is under
+  the 5-char containment floor, so `autoretry_v36{,s}.sh` could *never* link to jobs
+  `<rl-run>-v36{,s}` while `perfroll`/`neweval` linked fine. The matcher now reads what the loop
+  itself exposes, in order of authority: the JOBNAME its script declares (via `/proc/<pid>/fd/255`),
+  boundary-exact version tokens (`v36` ≠ `v36s`, so arms never cross-link), a recent `sacct` end for
+  the declared name, and its own log (`/proc/<pid>/fd/1`) written within its own poll interval
+  (parsed from the script's `POLL=`/`sleep`). A loop with any of these is a supervisor; a genuine
+  orphan — job gone AND log quiet past the poll window — still flags. `.chain_*`/`.retry_*` hidden
+  chains are recognized as loops too; before 2026-08-15 they were invisible to this tool entirely.
 - **`--since` matters.** A window shorter than the retry cadence makes a futile loop look new.
 - **HEALTHY is not "correct".** It means nothing is *obviously* wasted. Whether the run is
   well-posed is `exp-loop`'s question, not this one's.

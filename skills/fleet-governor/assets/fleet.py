@@ -20,10 +20,14 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 USER = os.environ.get("USER", "")
 # Supervisor loops are shell scripts that resubmit; exclude the agent's own shell wrappers.
-LOOP_PAT = re.compile(r"\b(autoretry|auto_retry|watch_|driver_|fleet_|_loop)\w*\.sh\b|\bautoretry\.sh\b")
+# `.chain_*` / `.retry_*` are hidden sentinel/probe chains — supervisors too (2026-08-15: they
+# were invisible to this tool while their sibling autoretry loops were being misflagged).
+LOOP_PAT = re.compile(r"\b(autoretry|auto_retry|watch_|driver_|fleet_|_loop)\w*\.sh\b"
+                      r"|\bautoretry\.sh\b|\.(?:chain|retry)_\w+\.sh\b")
 AGENT_NOISE = re.compile(r"claude/shell-snapshots|shopt -u extglob|builtin unalias")
 FAST = re.compile(r"^00:00:0[0-9]$")
 
@@ -71,6 +75,168 @@ def loops():
         found.append({"pid": pid, "user": user, "etime": etime,
                       "script": m.group(0), "cmd": cmd[:180]})
     return found
+
+
+# ---------------------------------------------------------------- loop <-> job association
+# Generic words match by accident: an unrelated path containing `eval` "matched" a queued job
+# whose name also contained `eval`, and that spurious match hid a genuine 11-day-old orphan
+# watcher. Only distinctive tokens count.
+STOP = {"eval", "evals", "train", "test", "run", "runs", "job", "jobs", "log", "logs", "tmp",
+        "temp", "data", "model", "models", "base", "main", "work", "workspace", "scratchpad",
+        "claude", "private", "home", "user", "bash", "sh", "py", "out", "err", "watch", "auto",
+        "retry", "autoretry", "step", "steps", "ckpt", "checkpoint", "node", "gpu", "slurm"}
+
+
+def distinctive(s):
+    return {t for t in re.findall(r"[a-z0-9_]{4,}", s.lower()) if t not in STOP}
+
+
+def linked(job_toks, cmd_toks):
+    """Exact token overlap, OR one token containing another (>=5 chars).
+
+    `autoretry_perfroll.sh` feeds jobs named `perfroll-0..3`; exact-token matching missed it and
+    called a healthy live supervisor an orphan. Driver scripts routinely embed the job name.
+    """
+    if job_toks & cmd_toks:
+        return True
+    for j in job_toks:
+        if len(j) < 5:
+            continue
+        for c in cmd_toks:
+            if j in c or (len(c) >= 5 and c in j):
+                return True
+    return False
+
+
+def version_toks(s):
+    """Arm/version tokens (`v36`, `v36s`, `v2b`), boundary-delimited.
+
+    2026-08-15, three false "orphan" flags in one morning: job `<rl-run>-v36` vs loop
+    `autoretry_v36.sh`. `v36` is 3 chars — below distinctive()'s 4-char floor — and `v36s` is
+    4 chars — below linked()'s 5-char containment floor — so version-suffixed arms could NEVER
+    link to their loops, while long word tokens (`perfroll`, `neweval`) linked fine. Version
+    tokens are short but maximally distinctive; they get their own exact-match channel.
+    Boundary-aware so `v36` does NOT cross-link with `v36s`.
+    """
+    return set(re.findall(r"(?<![a-z0-9])v\d+[a-z]*(?![a-z0-9])", s.lower()))
+
+
+def loop_meta(pid, script, cmd):
+    """Ground truth about a loop from /proc and its own script text.
+
+    A supervisor announces itself: bash holds the running script on fd 255, its stdout/stderr
+    point at its log, and the script declares the JOBNAME it submits and its poll cadence.
+    Reading those beats guessing from command-line tokens.
+    """
+    meta = {"script_path": None, "log_path": None, "log_mtime": None, "poll": 300,
+            "jobnames": []}
+    for fd in ("1", "2"):
+        try:
+            tgt = os.readlink("/proc/%s/fd/%s" % (pid, fd))
+            if os.path.isfile(tgt):
+                mt = os.path.getmtime(tgt)
+                if meta["log_mtime"] is None or mt > meta["log_mtime"]:
+                    meta["log_mtime"], meta["log_path"] = mt, tgt
+        except OSError:
+            pass
+    path = None
+    try:
+        cand = os.readlink("/proc/%s/fd/255" % pid)          # bash's own script fd
+        if cand.endswith(".sh") and os.path.isfile(cand):
+            path = cand
+    except OSError:
+        pass
+    if path is None:
+        try:
+            cwd = os.readlink("/proc/%s/cwd" % pid)
+            mm = re.search(r"(\S*%s)" % re.escape(script), cmd)
+            if mm and os.path.isfile(os.path.join(cwd, mm.group(1))):
+                path = os.path.join(cwd, mm.group(1))
+        except OSError:
+            pass
+    meta["script_path"] = path
+    if path:
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                txt = fh.read()
+        except OSError:
+            txt = ""
+        polls = [int(x) for x in re.findall(r"POLL:-(\d+)", txt)]
+        polls += [int(x) for x in re.findall(r"(?m)^\s*POLL=(\d+)\s*$", txt)]
+        polls += [int(x) for x in re.findall(r"\bsleep\s+(\d+)", txt)]
+        if polls:
+            meta["poll"] = max(60, min(3600, max(polls)))
+        names = re.findall(r"JOBNAME=\$\{JOBNAME:-([^}\s\"']+)\}", txt)
+        names += re.findall(r"(?m)^\s*JOBNAME=([A-Za-z0-9._-]+)\s*$", txt)
+        names += [m for m in re.findall(r"(?:sbatch|squeue)[^\n]*?\s-[Jn]\s+\"?([A-Za-z0-9._-]+)",
+                                        txt)]
+        meta["jobnames"] = sorted({n for n in names if "$" not in n})
+    return meta
+
+
+def recent_end(name, since, window, now):
+    """Did a job with this exact name end within `window` seconds (or is one still in sacct)?
+
+    Covers the race where fleet.py runs in the gap between a job dying and its loop's next poll
+    tick: squeue is empty, but sacct shows the arm was alive minutes ago — the loop is a
+    supervisor about to resubmit, not an orphan.
+    """
+    out = sh('sacct -u %s -S %s --name=%s -X --format=End%%20,State%%16 --noheader'
+             % (USER, since, name))
+    for ln in out.splitlines():
+        f = ln.split()
+        if not f:
+            continue
+        if f[0] in ("Unknown", "None"):
+            return True                                       # still live per sacct
+        try:
+            t = time.mktime(time.strptime(f[0], "%Y-%m-%dT%H:%M:%S"))
+        except ValueError:
+            continue
+        if now - t <= window:
+            return True
+    return False
+
+
+def assess_loop(s, meta, names, job_toks, since, now=None):
+    """Supervisor-vs-orphan decision for one live loop. Pure given (s, meta, names).
+
+    A loop is a SUPERVISOR when its associated jobname or log shows life within its own poll
+    window: (1) a jobname its script declares matches a queued job, (2) distinctive-token link,
+    (3) version-token link (v36 <-> autoretry_v36.sh), (4) its declared job ended within the
+    window (resubmit imminent), or (5) its log was written within the window (covers loops just
+    started — they write their start line). A genuine orphan — loop alive, job/stamps gone AND
+    no recent log lines — matches none of these and still flags.
+    """
+    now = time.time() if now is None else now
+    window = 2 * meta["poll"] + 60
+    cmd_toks = distinctive(s["cmd"])
+    declared = meta.get("jobnames") or []
+    by_name = any(d == n or d in n or n in d for d in declared for n in names)
+    by_tok = bool(names) and any(linked(jt, cmd_toks) for jt in job_toks)
+    vt = version_toks(s["cmd"] + " " + (meta.get("script_path") or ""))
+    by_ver = bool(vt) and any(version_toks(n) & vt for n in names)
+    log_age = None if meta["log_mtime"] is None else now - meta["log_mtime"]
+    by_log = log_age is not None and log_age <= window
+    by_hist = (not (by_name or by_tok or by_ver or by_log) and
+               any(recent_end(d, since, window, now) for d in declared))
+    supervisor = by_name or by_tok or by_ver or by_log or by_hist
+    evidence = [e for e, on in (("jobname", by_name), ("token", by_tok), ("version", by_ver),
+                                ("log<%ds" % window, by_log), ("recent-end", by_hist)) if on]
+    # Age stays an independent signal — a token CAN line up by accident — but hard evidence
+    # (declared jobname in the queue, or a log written this poll window) overrides it: a 4-day
+    # loop actively supervising its queued job is doing its job, not outliving it.
+    days = int(s["etime"].split("-")[0]) if re.match(r"^\d+-", s["etime"]) else 0
+    stale = days >= 3 and not (by_name or by_log or by_hist)
+    if supervisor and not stale:
+        reason = ""
+    elif stale:
+        reason = "stale: alive %s with no queue/log evidence this poll window" % s["etime"]
+    else:
+        quiet = "no log" if log_age is None else "log quiet %ds" % int(log_age)
+        reason = ("no queued job matches and %s (> %ds poll window)" % (quiet, window))
+    return {"supervisor": supervisor and not stale, "reason": reason, "window": window,
+            "evidence": evidence, "declared": declared}
 
 
 def history(name, since):
@@ -201,48 +367,19 @@ def main():
         report.append(c)
 
     bad = [x for x in report if x["verdict"] in ("FUTILE", "WASTEFUL")]   # WATCH/RECOVERING inform, not demand
-    # A loop that matches no queued job is a candidate orphan. Match on the WHOLE command line, not
-    # the script filename: these loops take the job name as an argument (`autoretry.sh <name> ...`),
-    # so filename-only matching flagged live, healthy supervisors as orphans.
-    # Generic words match by accident: an unrelated path containing `eval` "matched" a queued job
-    # whose name also contained `eval`, and that spurious match hid a genuine 11-day-old orphan
-    # watcher. Only distinctive tokens count.
-    STOP = {"eval", "evals", "train", "test", "run", "runs", "job", "jobs", "log", "logs", "tmp",
-            "temp", "data", "model", "models", "base", "main", "work", "workspace", "scratchpad",
-            "claude", "private", "home", "user", "bash", "sh", "py", "out", "err", "watch", "auto",
-            "retry", "autoretry", "step", "steps", "ckpt", "checkpoint", "node", "gpu", "slurm"}
-
-    def distinctive(s):
-        return {t for t in re.findall(r"[a-z0-9_]{4,}", s.lower()) if t not in STOP}
-
-    def linked(job_toks, cmd_toks):
-        """Exact token overlap, OR one token containing another (>=5 chars).
-
-        `autoretry_perfroll.sh` feeds jobs named `perfroll-0..3`; exact-token matching missed it and
-        called a healthy live supervisor an orphan. Driver scripts routinely embed the job name.
-        """
-        if job_toks & cmd_toks:
-            return True
-        for j in job_toks:
-            if len(j) < 5:
-                continue
-            for c in cmd_toks:
-                if j in c or (len(c) >= 5 and c in j):
-                    return True
-        return False
-
+    # A loop that matches no queued job — by declared jobname, distinctive/version tokens, recent
+    # sacct end, or a log line within its own poll window — is a candidate orphan. Match on the
+    # WHOLE command line plus what /proc and the script itself expose: filename-only and
+    # word-token-only matching each flagged live, healthy supervisors as orphans
+    # (2026-08-15: autoretry_v36{,s}.sh vs jobs <rl-run>-v36{,s}).
     orphans = []
     job_toks = [distinctive(n) for n in names]
     for s in sups:
-        cmd_toks = distinctive(s["cmd"])
-        matched = bool(names) and any(linked(jt, cmd_toks) for jt in job_toks)
-        # Age is the second, independent signal: a supervisor that has outlived any plausible run
-        # is worth surfacing even if a token happens to line up.
-        stale = bool(re.match(r"^\d+-", s["etime"])) and int(s["etime"].split("-")[0]) >= 3
-        if not matched or stale:
-            s = dict(s, reason=("stale: alive %s" % s["etime"]) if stale
-                     else "no queued job matches this loop")
-            orphans.append(s)
+        meta = loop_meta(s["pid"], s["script"], s["cmd"])
+        verdict = assess_loop(s, meta, names, job_toks, since)
+        s["evidence"] = ",".join(verdict["evidence"]) or "-"
+        if not verdict["supervisor"]:
+            orphans.append(dict(s, reason=verdict["reason"]))
 
     if a.json:
         print(json.dumps({"since": since, "jobs": report, "loops": sups, "orphans": orphans},
@@ -262,7 +399,8 @@ def main():
 
     print("\nsupervisor loops alive: %d" % len(sups))
     for s in sups:
-        print("  pid %-9s up %-11s %s" % (s["pid"], s["etime"], s["script"]))
+        print("  pid %-9s up %-11s %-30s link:%s"
+              % (s["pid"], s["etime"], s["script"], s.get("evidence", "-")))
     if orphans:
         print("\nORPHAN / STALE loops:")
         for s in orphans:

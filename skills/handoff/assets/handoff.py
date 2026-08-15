@@ -22,15 +22,75 @@ import re
 import subprocess
 import sys
 
+# Matched against HEADING TEXT, not against the whole document.
+#
+# The first version matched free prose anywhere in the file, and both directions were wrong:
+#   - it MISSED a finished doc. "what I changed" accepted only `건드리지` among Korean phrasings,
+#     so a doc that said "아무것도 바꾸지 않았습니다" — the same statement, different verb — failed.
+#   - it PASSED a doc with no sections at all. `blast radius` accepted the bare word "scope" or
+#     "affected"; `what to fix` accepted "수정"; `evidence` accepted "evidence". Any handover-shaped
+#     prose satisfies six of seven rules by accident, so the gate was very nearly non-binding.
+# A checker that validates vocabulary cannot enforce structure. These match the heading line.
+# (name, heading pattern, alternative that also satisfies it anywhere in the doc)
+#
+# The heading patterns accept synonyms rather than one canonical title, because a heading that names
+# the specific consequence — "Why this breaks comparisons: the artifact rate is arm-dependent" — is
+# better writing than "Blast radius" and must not be failed for it. What is NOT accepted is the same
+# word buried in a paragraph: the requirement is that a receiver scanning headings finds it.
+#
+# "what I changed" additionally accepts a bolded standalone declaration, because that is the form the
+# statement actually takes in practice and it is just as findable. Plain prose does not count.
 REQUIRED = [
-    ("symptom", r"##\s*Symptom|^\*\*Symptom|증상"),
-    ("evidence", r"provenance|Provenance|evidence|Evidence|근거|출처"),
-    ("root cause", r"[Rr]oot cause|원인"),
-    ("blast radius", r"[Bb]last radius|scope|Scope|범위|affected"),
-    ("what to fix", r"[Ww]hat to fix|수정|[Nn]ext steps|fix \(in order\)"),
-    ("how to verify", r"[Hh]ow to verify|검증|[Vv]erify a fix"),
-    ("what I changed", r"[Nn]othing .* changed|changed by me|건드리지|Analysis only|analysis only"),
+    ("symptom",       r"^(symptom|증상|observed|what'?s wrong)", None),
+    ("root cause",    r"^(root\s*cause|원인|why (it|this) (happens|fails)|mechanism)", None),
+    ("blast radius",  r"^(blast\s*radius|영향|범위|scope|impact|what else|why this (breaks|affects)"
+                      r"|affected)", None),
+    ("evidence",      r"^(evidence|provenance|근거|출처|how i know)", None),
+    ("what to fix",   r"^(what\s*to\s*fix|수정|fix\b|remediation|repair)", None),
+    ("how to verify", r"^(how\s*to\s*verify|검증|verification|verify\b)", None),
+    ("what I changed", r"^(what\s*i\s*changed|무엇을\s*바꿨|바꾼\s*것|내가\s*바꾼|변경\s*사항"
+                       r"|changes? i made)",
+     r"^\*\*[^*\n]*(nothing[^*\n]*chang|chang[^*\n]*by me|아무것도[^*\n]*(바꾸|고치)"
+     r"|건드리(지|시)|analysis only)[^*\n]*\*\*"),
 ]
+
+# A heading with nothing under it is not a section. 30 chars is below any real answer to these
+# questions and above an accidental blank-with-a-link.
+MIN_BODY = 30
+
+
+def sections(text):
+    """[(heading_text, body)] for ATX headings. Fences are skipped so `# comment` lines in a shell
+    block are not read as headings — the docs here all carry reproduction commands."""
+    out, cur, buf, fence = [], None, [], False
+    for ln in text.splitlines():
+        if re.match(r"^\s*(```|~~~)", ln):
+            fence = not fence
+        m = None if fence else re.match(r"^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$", ln)
+        if m:
+            if cur is not None:
+                out.append((cur, "\n".join(buf)))
+            cur, buf = m.group(1), []
+        else:
+            buf.append(ln)
+    if cur is not None:
+        out.append((cur, "\n".join(buf)))
+    return out
+
+
+def section_status(text):
+    """(missing, thin) by required-section name."""
+    secs = sections(text)
+    missing, thin = [], []
+    for name, rx, alt in REQUIRED:
+        body = next((b for h, b in secs if re.search(rx, h.strip(), re.I)), None)
+        if body is None:
+            if alt and re.search(alt, text, re.I | re.M):
+                continue
+            missing.append(name)
+        elif len(re.sub(r"\s+", " ", body).strip()) < MIN_BODY:
+            thin.append(name)
+    return missing, thin
 
 TEMPLATE = """# HANDOFF — {title}
 
@@ -143,7 +203,7 @@ def cmd_check(a):
         print("handoff: no such file: %s" % a.doc, file=sys.stderr)
         return 2
     text = open(a.doc, encoding="utf-8", errors="replace").read()
-    missing = [name for name, rx in REQUIRED if not re.search(rx, text)]
+    missing, thin = section_status(text)
     # Only PROSE placeholders count. Two classes of angle-bracket look like template slots but are
     # not, and flagging either taught a finished document to read as unfinished:
     #   - content, e.g. `<tool_call>` / `<function=think>` — no spaces, so the space test drops it;
@@ -154,15 +214,18 @@ def cmd_check(a):
     placeholders = [m for m in re.findall(r"<[a-z][^>\n]{9,}>", prose) if " " in m]
 
     print("checking %s (%d chars)" % (a.doc, len(text)))
-    for name, rx in REQUIRED:
-        print("  [%s] %s" % ("ok  " if re.search(rx, text) else "MISS", name))
+    for name, _rx, _alt in REQUIRED:
+        mark = "MISS" if name in missing else ("thin" if name in thin else "ok  ")
+        print("  [%s] %s" % (mark, name))
     if placeholders:
         print("\n  %d unfilled placeholder(s): %s"
               % (len(placeholders), ", ".join(p[:40] for p in placeholders[:4])))
-    if missing or placeholders:
+    if missing or thin or placeholders:
         print("\nNot ready to hand over.")
         if missing:
             print("  missing sections: %s" % ", ".join(missing))
+        if thin:
+            print("  heading present but nothing under it: %s" % ", ".join(thin))
         if placeholders:
             print("  the template is still showing through — a receiver reads that as 'not my problem yet'")
         return 1

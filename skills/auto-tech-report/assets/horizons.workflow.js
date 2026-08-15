@@ -22,7 +22,7 @@ const REPO = '<shared-work>/workspace/minstar/minstar.github.io';
 const NOTES_GLOB = `${REPO}/notes`;                              // dated research notes + insights file live here
 const INSIGHTS = `${REPO}/notes/insights-tech-reports.md`;      // the frontier tech-report catalog
 const CORPUS_STYLE = '<home>/.claude/skills/paper-voice/authored_corpus_style.md'; // his authored-paper corpus table + theses
-const IDENTITY_MEMO = '<home>/.claude/projects/-upstg-private-minstar/memory/minstar_identity_scholar.md';
+const IDENTITY_MEMO = '<home>/.claude/projects/<project-slug>/memory/minstar_identity_scholar.md';
 const SCHOLAR = 'https://scholar.google.com/citations?user=jwx0FLoAAAAJ'; // last-2y papers (fetch is best-effort; arXiv fallback)
 
 // The deliberate crossing-angles. Each ideation agent takes ONE. Diversity is the point — an angle

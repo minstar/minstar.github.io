@@ -66,6 +66,7 @@ then nothing is checked at all.
 | `paths-exist` | FAIL | Literal input/checkpoint paths that no longer exist after a refactor — the most common procedural failure |
 | `script-refs` | FAIL | A submit wrapper pointing at a moved/renamed sbatch file runs the wrong thing or dies late |
 | `module-refs` | FAIL | A python module/script reference that does not resolve against the script's own `PYTHONPATH`. Fails in ~2s, so an autoretry loop resubmits it forever — EXP-001 spent 224 submissions this way |
+| `arm-consistency` | FAIL | A sed-cloned script whose filename says one arm but whose identity vars (`ARM`, `MODEL`, `CKPT_DIR`, `SAVE_DIR`, `HF_DIR`, `WANDB_GROUP`, `JOBNAME`, `-J`) still carry the donor arm's token — EXP-012d: `probe_v36s_sentinel.slurm` kept `ARM=<rl-run>v36`, three probes measured the wrong model's weights, a training run was halted on the false evidence. Waive deliberate cross-arm use with `# preflight: allow-cross-arm` |
 | `uv-cache` | FAIL | On requeue a shared uv cache collides and the job FAILs immediately; needs a per-job `UV_CACHE_DIR` |
 | `rocr` | FAIL | The cluster sets ROCR and CUDA visible devices together; verl workers die until `ROCR_VISIBLE_DEVICES` is unset |
 | `flashinfer` | WARN | A shared flashinfer JIT cache causes ninja build failures across concurrent jobs |
@@ -112,6 +113,15 @@ Say these out loud before submitting; the checker cannot see them:
   is the checker being honest, and it means you check those by hand.
 - **A green run is not a correctness proof.** It says the known procedural traps are clear; it says
   nothing about whether the experiment is well-posed. That is `exp-loop`'s job.
+- **Cloning a script clones its identity.** `sed`-cloning between arms is how every probe/driver
+  here is made, and the one identifier the sed missed measures the *donor's* model while reporting
+  as the clone's (EXP-012d: `ARM=<rl-run>v36` inside `probe_v36s_sentinel.slurm` — three wrong-arm
+  probes, one training run halted on false evidence). `arm-consistency` compares filename arm
+  tokens against identity vars: `v36` vs `v36s` is a FAIL (one-letter suffixes are distinct arms),
+  while glued word-tails are not arms (`v36cen`, `v2ckpt` normalize to `v36`, `v2`). After any
+  clone, run preflight *before* editing anything else — the 2026-08-15 sweep found four more
+  historical clones (`probe_v31/v32/v32f_sentinel.slurm`, `convert_v2early.slurm`) with the same
+  defect already on disk.
 
 ## Composition
 

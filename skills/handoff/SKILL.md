@@ -82,6 +82,15 @@ Exit `0` fine · `1` incomplete/unaddressable · `2` bad invocation.
 - **Placeholders in code are not unfilled slots.** `--a <baseline file>` is usage syntax the reader
   substitutes; `<what else is affected>` is an unfilled slot. The checker strips code fences and
   inline spans before looking — a checker that flags finished documents is one nobody runs twice.
+- **A checker that matches vocabulary cannot enforce structure.** `check` originally searched the
+  whole document for phrases, and on 2026-08-15 it failed in *both* directions at once: it rejected a
+  finished doc because "아무것도 바꾸지 않았습니다" was not the one Korean phrasing it knew
+  (`건드리지`), while `blast radius` was satisfied by the bare word "scope" or "affected" appearing
+  anywhere — so a document with no sections at all passed six of seven rules. It now matches
+  **headings**, accepts synonym headings (a heading naming the actual consequence — "Why this breaks
+  comparisons" — beats a generic "Blast radius" and must not be failed for it), and rejects a heading
+  with nothing under it. Regression set, run on every change: every real `HANDOFF*.md` on disk must
+  pass, and a vocabulary-only document must fail.
 - **Broadcasting to every live session is not a fallback.** It reaches people who then have to
   decide it is not theirs. If you cannot address it, say so and hand the pointer to the user.
 
