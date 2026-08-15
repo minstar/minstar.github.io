@@ -26,7 +26,41 @@ Checker: `assets/power.py`. Three modes, all offline, no dependencies.
 python3 ~/.claude/skills/stat-gate/assets/power.py compare --a runA.jsonl --b runB.jsonl
 python3 ~/.claude/skills/stat-gate/assets/power.py floor run1.jsonl run2.jsonl run3.jsonl
 python3 ~/.claude/skills/stat-gate/assets/power.py design --sd 0.45 --target 0.02 --n 500
+
+python3 ~/.claude/skills/stat-gate/assets/slice_check.py "<glob>" --head 100   # smoke -> full?
 ```
+
+## Before you extrapolate a smoke number: `slice_check.py`
+
+A `--max-samples N` / `rows[:N]` smoke read is `tasks[:N]`, literally. If the file is ordered by
+anything correlated with the outcome, that head is one stratum at full weight and the number does
+not extrapolate. Measured on this cluster's MMLU results, 95 arms, `head[:100]` vs the full file:
+
+| | abstention in `head[:100]` vs full |
+|---|---|
+| median | +2.8pp |
+| **mean** | **+7.6pp** — systematically high, not noise |
+| arms off by >10pp | **34 of 95 (36%)** |
+| worst | **+24.1pp** (59.0% vs 34.9%) |
+
+So every MMLU smoke number read off the first 100 rows in this campaign overstates abstention.
+Run `slice_check.py` before quoting a smoke figure, or read the full file — these corpora sweep in
+seconds.
+
+**What it does not cover.** It checks one failure mode: a head that is a stratum. It was built to
+mechanize what looked like the common cause of three wrong conclusions in a day, and its first run
+refuted that premise for two of them — the slice blamed there was representative (TVD 0.029). Those
+two had different causes, and neither is caught by this tool:
+
+- **Reading the top rows of a list you just sorted by the variable under test.** That is not a
+  sample, it is the extreme. Sort, then print a summary statistic — never eyeball the head.
+- **Asserting an output-side mechanism from an input-side field.** "The think text is being scored
+  as the answer" was written from `raw_output` without ever joining to `submitted`, where the value
+  turned out to be a single option letter. Do not write "X is scored as Y" before reading Y.
+
+The general rule the three of these share is not about slicing: **an explanation of why you were
+wrong is itself a claim, and needs checking before it is passed on.** The wrong diagnosis here
+travelled to another session and became a shared generalisation before it was tested.
 
 **Input**: JSONL, a JSON array, or a JSON summary document with a per-item list (`results`/`items`/
 `records`/`predictions`/`samples`) — the shape real harnesses actually write. Each record needs an
