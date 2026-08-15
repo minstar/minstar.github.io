@@ -15,6 +15,7 @@ command and stops there.
 Exit 0 = nothing needs attention. Exit 1 = at least one FUTILE or ORPHAN finding.
 """
 import argparse
+import datetime
 import json
 import os
 import re
@@ -241,14 +242,22 @@ def assess_loop(s, meta, names, job_toks, since, now=None):
 
 def history(name, since):
     """Recent terminal states for a job name, newest first."""
-    out = sh('sacct -u %s -S %s --name=%s --format=JobID%%14,State%%16,ExitCode%%8,Elapsed%%10 '
-             '--noheader' % (USER, since, name))
+    # --parsable2 rather than column widths: `State` can be "CANCELLED by 12345", which whitespace
+    # splitting tears into two fields and shifts every column after it.
+    out = sh('sacct -u %s -S %s --name=%s --parsable2 --noheader '
+             '--format=JobID,State,ExitCode,Elapsed,End' % (USER, since, name))
     rows = []
     for ln in out.splitlines():
-        f = ln.split()
-        if len(f) < 4 or "." in f[0]:            # drop .batch/.extern/.0 steps
+        f = ln.split("|")
+        if len(f) < 5 or "." in f[0]:            # drop .batch/.extern/.0 steps
             continue
-        rows.append({"jobid": f[0], "state": f[1], "exit": f[2], "elapsed": f[3]})
+        end = None
+        try:                                      # sacct writes Unknown while a job is still live
+            end = datetime.datetime.strptime(f[4].strip(), "%Y-%m-%dT%H:%M:%S")
+        except ValueError:
+            pass
+        rows.append({"jobid": f[0], "state": f[1].split()[0] if f[1] else "",
+                     "exit": f[2], "elapsed": f[3], "end": end})
     return rows
 
 
@@ -290,6 +299,47 @@ def deterministic(fails):
     return False, ""
 
 
+def script_repaired_since(rows, running):
+    """(True, detail) when the submission script was edited AFTER the last failure.
+
+    FUTILE reads only the failure history in the window, so it cannot see the most common way a
+    deterministic failure actually gets resolved here: the owner fixes the script and resubmits.
+    On 2026-08-16 two arms were flagged FUTILE on two genuine exit-1 failures while their scripts
+    had been repaired 08:33:26 and resubmitted 23 seconds later — and a sibling job on the same
+    repaired script was already past the point where the old one died. Reporting FUTILE there
+    invites cancelling a fix that is working.
+
+    Uses the live attempt's own `Command`, so it is the script that will actually run, not a guess.
+    """
+    if not running:
+        return False, ""
+    ends = [x.get("end") for x in rows if x["state"] == "FAILED" and x.get("end")]
+    if not ends:
+        return False, ""
+    last_fail = max(ends)
+    for j in running:
+        jid = str(j.get("jobid") or "").split(".")[0].split("_")[0]
+        if not jid.isdigit():
+            continue
+        out = sh("scontrol show job %s 2>/dev/null" % jid)
+        m = re.search(r"Command=(\S+)", out or "")
+        if not m:
+            continue
+        p = m.group(1)
+        # <internal-root> and <shared-work-root>/private are the same tree by two mounts; only one is readable here.
+        for cand in (p, p.replace("<shared-work>", "<shared-work>")):
+            try:
+                mt = datetime.datetime.fromtimestamp(os.path.getmtime(cand))
+            except OSError:
+                continue
+            if mt > last_fail:
+                return True, ("submission script %s was edited %s, after the last failure at %s"
+                              % (os.path.basename(cand), mt.strftime("%m-%d %H:%M"),
+                                 last_fail.strftime("%m-%d %H:%M")))
+            break
+    return False, ""
+
+
 def classify(name, rows, running=None):
     """Verdict for one job name over its recent history, in light of what is running now."""
     if not rows:
@@ -314,6 +364,15 @@ def classify(name, rows, running=None):
         return {"verdict": "RECOVERING", "counts": counts,
                 "detail": "%d past failure(s) (longest %ds) but a live attempt is at %ds — it is "
                           "past the wall they hit" % (len(fails), longest_fail, live)}
+
+    # A repair landed after the last failure. Even a deterministic cause is no longer evidence about
+    # the attempt now queued, because the thing that produced it has changed.
+    if fails and not comp:
+        fixed, how = script_repaired_since(rows, running)
+        if fixed:
+            return {"verdict": "RECOVERING", "counts": counts,
+                    "detail": "%d failure(s), but %s — the live attempt runs different code"
+                              % (len(fails), how)}
 
     # Nothing is landing. This dominates every other reading — but one failure is an incident, not a
     # pattern, so it does not earn a verdict that invites cancelling the arm.
