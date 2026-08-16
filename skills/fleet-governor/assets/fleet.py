@@ -169,6 +169,14 @@ def loop_meta(pid, script, cmd):
             meta["poll"] = max(60, min(3600, max(polls)))
         names = re.findall(r"JOBNAME=\$\{JOBNAME:-([^}\s\"']+)\}", txt)
         names += re.findall(r"(?m)^\s*JOBNAME=([A-Za-z0-9._-]+)\s*$", txt)
+        # A dispatcher takes the arm as an ARGUMENT and maps it in a `case`:
+        #     a) JOBNAME=<arm-a-job>; ENVFILE=...; NODES=2 ;;
+        # The two patterns above are anchored to line start and line end, so neither matches that
+        # form. On 2026-08-16 that left three healthy loops (`autoretry.sh a|b|c`) declaring no
+        # jobname at all — and since their identity lives in a one-character argument, no token
+        # channel could link them either, so all three were reported as orphans while they were
+        # actively resubmitting. Accept the assignment wherever it appears on a line.
+        names += re.findall(r"(?<![A-Za-z0-9_])JOBNAME=([A-Za-z0-9._-]+)", txt)
         names += [m for m in re.findall(r"(?:sbatch|squeue)[^\n]*?\s-[Jn]\s+\"?([A-Za-z0-9._-]+)",
                                         txt)]
         meta["jobnames"] = sorted({n for n in names if "$" not in n})
@@ -221,6 +229,13 @@ def assess_loop(s, meta, names, job_toks, since, now=None):
     by_log = log_age is not None and log_age <= window
     by_hist = (not (by_name or by_tok or by_ver or by_log) and
                any(recent_end(d, since, window, now) for d in declared))
+    # NOTE on the quiet-log signal, because it is easy to "fix" wrongly. These drivers log only on a
+    # state change (start, resubmit, prune) and write nothing while their job RUNS, so a healthy
+    # loop is silent for hours — which is why three of them read as orphans on 2026-08-16. The
+    # tempting patch, "has a live child process", is unsound: a healthy loop and a genuine orphan
+    # are BOTH sitting in `sleep` at almost any sampled instant, so it would mostly mask real
+    # orphans. The sound fix is upstream — read the jobname the loop actually declares (see
+    # loop_meta) so `by_name` resolves and the quiet log never has to carry the decision alone.
     supervisor = by_name or by_tok or by_ver or by_log or by_hist
     evidence = [e for e, on in (("jobname", by_name), ("token", by_tok), ("version", by_ver),
                                 ("log<%ds" % window, by_log), ("recent-end", by_hist)) if on]
