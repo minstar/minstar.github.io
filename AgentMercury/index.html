@@ -1,0 +1,368 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-157941252-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'UA-157941252-1');
+  </script>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>AgentMercury &mdash; Synthesizing Verifiable Environments at Scale</title>
+  <meta name="author" content="Minbyul Jeong">
+  <meta name="description" content="AgentMercury: a scalable framework that synthesizes executable, verifiable agent environments from high-level business scenarios — and trains policies with RL inside them.">
+  <meta property="og:title" content="AgentMercury">
+  <meta property="og:description" content="Your agent can synthesize verifiable environments for business scenarios at scale.">
+  <meta property="og:image" content="https://minstar.github.io/AgentMercury/assets/planet_hero_v3.png">
+
+  <link rel="stylesheet" type="text/css" href="../stylesheet.css">
+  <link rel="icon" type="image/png" href="../pictures/personal_icon_2.png">
+
+  <style>
+    /* project-page styles, layered on top of the site stylesheet */
+    .am-title { font-family:'Lato',Verdana,Helvetica,sans-serif; font-size:34px; font-weight:700; color:#222; }
+    .am-title .am-mercury { color:#f09228; font-weight:400; }
+    .am-subtitle { font-size:17px; color:#555; margin-top:2px; line-height:1.5; }
+    .am-authors { font-size:15px; margin-top:14px; }
+    .am-authors a { font-weight:700; }
+    .am-affil { font-size:13px; color:#777; margin-top:2px; }
+
+    .am-links { margin:18px 0 6px; }
+    .am-btn {
+      display:inline-block; margin:3px 3px; padding:5px 16px;
+      border:1.5px solid #1772d0; border-radius:20px;
+      color:#1772d0; font-size:14px; font-weight:700; background:#fff;
+    }
+    .am-btn:hover { border-color:#f09228; color:#f09228; text-decoration:none; }
+
+    .am-video { max-width:100%; border-radius:8px; border:1px solid #ddd; display:block; margin:14px auto 4px; background:#0d1017; }
+
+    /* the signature: the paper's actual construction chain, set as type */
+    .am-chain {
+      text-align:center; font-size:15px; color:#444; letter-spacing:.02em;
+      background:#f6f8fa; border:1px solid #eaecef; border-radius:6px;
+      padding:12px 10px; margin:16px 0; overflow-x:auto; white-space:nowrap;
+    }
+    .am-chain b { color:#1772d0; }
+    .am-chain .am-planet { color:#f09228; }
+    .am-chain .am-arrow { color:#aaa; padding:0 6px; }
+
+    .am-stats { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 26px; margin:18px 0 8px; text-align:center; }
+    .am-stat b { display:block; font-size:24px; color:#222; font-variant-numeric:tabular-nums; }
+    .am-stat span { font-size:12.5px; color:#777; }
+    .am-stat b .am-mercury { color:#f09228; }
+
+    .am-h2 { font-size:20px; font-weight:700; margin:30px 0 10px; color:#222; }
+    .am-h2::before { content:"\263F\00a0"; color:#f09228; font-weight:400; } /* ☿ */
+    .am-body p { font-size:14px; line-height:1.7; color:#333; }
+    .am-caption { color:#666; font-size:13px; font-style:italic; margin:8px 6px 0; line-height:1.55; }
+    figure.am-fig { margin:16px 0 8px; }
+    figure.am-fig img { max-width:100%; display:block; margin:auto; border:1px solid #eee; border-radius:6px; }
+
+    .am-table-wrap { overflow-x:auto; margin:12px 0; }
+    table.am-table { border-collapse:collapse; font-size:13px; min-width:540px; }
+    table.am-table th, table.am-table td { border:1px solid #ddd; padding:5px 9px; text-align:center; font-variant-numeric:tabular-nums; }
+    table.am-table th { background:#f6f8fa; }
+    table.am-table td:first-child, table.am-table th:first-child { text-align:left; }
+    table.am-table tr.am-ours { background:#ffffd0; font-weight:700; }
+    table.am-table .am-up { color:#0a7d18; font-weight:700; }
+    table.am-table .am-down { color:#b04a4a; }
+
+    .am-callout {
+      border-left:3px solid #f09228; background:#fef7ee; padding:12px 16px;
+      border-radius:6px; margin:16px 0; font-size:14px; line-height:1.65;
+    }
+    .am-release li { font-size:14px; line-height:1.7; }
+
+    .am-bibtex {
+      background:#f6f8fa; border:1px solid #eaecef; border-radius:6px;
+      padding:12px 14px; overflow-x:auto; font-size:12.5px; line-height:1.5;
+    }
+    .am-updated { color:#999; font-size:12px; text-align:right; }
+    @media (prefers-reduced-motion: no-preference) {
+      .am-btn { transition: border-color .15s ease, color .15s ease; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="row" style="margin-top: 10px;">
+      <div class="col-sm-12" style="text-align:center;">
+        <p class="site-nav">
+          <a href="../index.html">Home</a> &nbsp;/&nbsp;
+          <a href="../research-notes.html">Research Notes</a> &nbsp;/&nbsp;
+          <a href="../AgentPlanet/index.html">AgentPlanet</a> &nbsp;/&nbsp;
+          <a href="index.html" class="active">AgentMercury</a>
+        </p>
+
+        <p class="am-title" style="margin-bottom:0;"><span class="am-mercury">&#9791;</span> AgentMercury</p>
+        <p class="am-subtitle">Your Agent Can Synthesize <b>Verifiable Environments</b><br>for Business Scenarios at Scale</p>
+
+        <p class="am-authors">
+          <a href="https://scholar.google.com/citations?user=jwx0FLoAAAAJ">Minbyul Jeong</a><sup>1</sup> &nbsp;&nbsp;
+          <b>Chanwoong Yoon</b><sup>2</sup>
+        </p>
+        <p class="am-affil"><sup>1</sup>Meridian Intelligence Global Inc. &nbsp;&nbsp; <sup>2</sup>University of Massachusetts Amherst</p>
+
+        <p class="am-links">
+          <a class="am-btn" href="assets/agentmercury_paper.pdf">&#128196; Paper</a>
+          <a class="am-btn" href="https://github.com/minstar/AgentMercury">&#128187; Code</a>
+          <a class="am-btn" href="https://huggingface.co/Minbyul/AgentMercury-Qwen3.5-4B">&#129303; Model</a>
+          <a class="am-btn" href="https://huggingface.co/collections/Minbyul/agentmercury">&#128230; Data</a>
+          <a class="am-btn" href="#bibtex">&#9998; BibTeX</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row">
+      <div class="col">
+        <div class="note-body am-body">
+
+          <video class="am-video" autoplay loop muted playsinline controls
+                 poster="assets/teaser_poster.png" src="assets/agentmercury_teaser.mp4">
+            Your browser does not support the video tag.
+          </video>
+          <p class="am-caption" style="text-align:center;">
+            60-second overview: how a business scenario becomes an executable world, how policies
+            train inside it, and what transfers. All curves and numbers are from the actual runs.
+          </p>
+
+          <div class="am-chain">
+            &sigma; <span class="am-arrow">&#8594;</span>
+            <b class="am-planet">Planet</b> <span class="am-arrow">&#8594;</span>
+            w <span class="am-arrow">&#8594;</span>
+            <b>Task</b> <span class="am-arrow">&#8594;</span>
+            (u,&thinsp;&rho;) <span class="am-arrow">&#8594;</span>
+            &pi; <span class="am-arrow">&#8594;</span>
+            &tau; <span class="am-arrow">&#8594;</span>
+            <b>Grade</b> <span class="am-arrow">&#8594;</span>
+            r
+          </div>
+          <p class="am-caption" style="text-align:center; margin-top:-6px;">
+            A scenario &sigma; is compiled by <span style="color:#f09228;">Planet</span> into an executable world w;
+            tasks (u,&thinsp;&rho;) are instantiated from the world; a policy &pi; produces a trajectory &tau;
+            that is graded deterministically into a reward r.
+          </p>
+
+          <h2 class="am-h2">Abstract</h2>
+          <p>
+            Policy models learn to select actions; world models learn to predict subsequent states. Both depend on
+            diverse, informative environments for training &mdash; yet environments are typically hand-built or
+            synthesized around predefined tasks and benchmarks. This task-centric paradigm limits environments to
+            what the target benchmark measures. <b>AgentMercury</b> flips the direction: it synthesizes
+            <b>executable environments from high-level business scenarios</b>, making environment construction an
+            explicit <b>Planet</b> role in the agent&ndash;environment system. Policies trained with RL inside these
+            worlds show steadily improving rewards and transfer to established benchmarks spanning knowledge,
+            reasoning, and tool use &mdash; despite the environments being built independently of every evaluation
+            task. The construction traces themselves are learnable: a fine-tuned open model authors new valid worlds
+            through code-level modifications, suggesting a scalable loop of environment generation and agent learning.
+          </p>
+
+          <div class="am-stats">
+            <div class="am-stat"><b>4,783</b><span>executable worlds</span></div>
+            <div class="am-stat"><b>14</b><span>industries &middot; 50 countries</span></div>
+            <div class="am-stat"><b>13.98M</b><span>seeded state rows</span></div>
+            <div class="am-stat"><b>842</b><span>unique tools</span></div>
+            <div class="am-stat"><b>43,300</b><span>verifiable RL tasks</span></div>
+          </div>
+
+          <figure class="am-fig">
+            <img src="assets/motivation_diversity-1.png" alt="AgentMercury spans 14 industries and 50 countries with 4,783 environments; each environment averages 13 services, 65 tools, 31 state tables, and 15 SQL verifiers.">
+            <figcaption class="am-caption">
+              <b>Diverse, multi-service, verifiable.</b> (a) 4,783 environments across 14 industries and 50 countries.
+              (b) Against existing agent environments, AgentMercury occupies the regime that is both large-scale and
+              multi-service. (c) A typical world carries ~13 services, ~65 tools, ~31 state tables, and ~15
+              deterministic SQL verifiers over one shared state database.
+            </figcaption>
+          </figure>
+
+          <h2 class="am-h2">How Planet builds a world</h2>
+          <p>
+            <b>Planet</b> receives only a scenario &sigma; and emits a complete world specification
+            w&nbsp;=&nbsp;&lang;S, A, &Omega;, T, O, s&#8320;, R&rang;, factorized as grounded company identity
+            &rarr; service graph &rarr; state schema &rarr; seeded initial state &rarr; world-level invariants.
+            Crucially, the invariants R are <i>not enforced</i> by the transition function &mdash; they are rendered
+            as executable verification conditions (largely SQL over the world&rsquo;s own database). The agent is
+            responsible for satisfying cross-service requirements; the world only checks them afterwards. One world
+            then serves many tasks: task instantiation seeds task-specific state &Delta;s&#8320; and a rubric &rho;
+            on top of the shared world, and post-episode grading is deterministic and replayable.
+          </p>
+
+          <figure class="am-fig">
+            <img src="assets/planet_hero_v3.png" alt="Pipeline from scenario to executable world to task instantiation, agent interaction, and deterministic post-episode verification.">
+            <figcaption class="am-caption">
+              <b>(A)</b> Outside the world: Planet constructs company identity, service graph, state schema, seeded
+              state, and invariants; Task instantiates objectives. <b>(B)</b> Inside the world: the policy acts from
+              history while the environment transitions deterministically; a post-episode verifier grades the
+              trajectory with the task rubric and hidden invariant views.
+            </figcaption>
+          </figure>
+
+          <figure class="am-fig">
+            <img src="assets/task_synthesis_v2.png" alt="Corpus composition: 43,300 tasks from 4,326 environments; the RL run touches 3,200 tasks yet retains over half of the structural diversity.">
+            <figcaption class="am-caption">
+              <b>Worlds are built once; tasks are many.</b> The RL corpus holds 43,300 investigation tasks from 4,326
+              company environments (2,287 industries, 842 tools, 222 state-table types, 148 service combinations).
+              The reported 4B run receives gradients on only 3,200 tasks (7.4%) &mdash; yet still covers 53.5% of
+              environments, 62.9% of industries, and 75.8% of tools.
+            </figcaption>
+          </figure>
+
+          <h2 class="am-h2">Training inside synthesized worlds</h2>
+          <p>
+            We train <b>Qwen3.5-4B</b> and <b>Qwen3.5-35B-A3B</b> with RL (GRPO, and SAO as an alternative
+            optimizer) directly in the synthesized environments &mdash; multi-turn MCP tool use against live business
+            software, rewarded by the deterministic environment grader. Rewards improve steadily; the
+            truncated-response ratio collapses; degenerate responses stay near zero. The improvement is progressive
+            across checkpoints rather than a single-step jump.
+          </p>
+
+          <figure class="am-fig">
+            <img src="assets/training_curves.png" alt="Reward rises from 0.25 to about 0.53 for Qwen3.5-4B GRPO over 149 steps and from 0.35 to about 0.64 for Qwen3.5-35B-A3B SAO over 180 steps, while truncation falls.">
+            <figcaption class="am-caption">
+              <b>Healthy optimization at two scales.</b> Left: Qwen3.5-4B + GRPO &mdash; mean reward roughly doubles
+              (~0.25 &rarr; ~0.53 at peak). Middle: Qwen3.5-35B-A3B on the same worlds &mdash; GRPO climbs 0.42 &rarr;
+              0.57 and SAO 0.34 &rarr; 0.64. Right: the truncated-response ratio collapses in all three runs (78% &rarr;
+              3% for the 4B) while degenerate responses stay near zero. Thin lines: raw per-step values; bold: smoothed.
+              4B curves are digitized from the paper&rsquo;s training figure; 35B curves are parsed from the raw run logs.
+            </figcaption>
+          </figure>
+
+          <figure class="am-fig">
+            <img src="assets/experiment_analysis.png" alt="Out-of-domain benchmark performance rises across training checkpoints on AIME26, HMMT, LiveCodeBench, SciCode, tau3, BFCL, and GPQA-Diamond.">
+            <figcaption class="am-caption">
+              <b>Transfer emerges during training, not at a lucky checkpoint.</b> Out-of-domain performance of
+              Qwen3.5-4B + GRPO across checkpoints; dashed line = base model, error bars = s.d. over three
+              independent evaluation runs.
+            </figcaption>
+          </figure>
+
+          <h2 class="am-h2">Results</h2>
+          <p>
+            <b>In-domain (EnterpriseOps-Gym, 8 enterprise domains).</b> Training on AgentMercury improves the 4B
+            average from 12.3 to 15.7 (<b>+27.6%</b>, 7 of 8 domains) and the 35B-A3B average from 24.8 to 28.1
+            (GRPO) / 28.3 (SAO) &mdash; with SAO improving <b>all eight</b> domains. None of the evaluation
+            environments were seen during training.
+          </p>
+
+          <div class="am-table-wrap">
+            <table class="am-table">
+              <tr><th>Model</th><th>Teams</th><th>CSM</th><th>Email</th><th>ITSM</th><th>Calendar</th><th>HR</th><th>Drive</th><th>Hybrid</th><th>Avg.</th></tr>
+              <tr><td>GPT-5&dagger;</td><td>26.3</td><td>36.4</td><td>49.0</td><td>18.9</td><td>41.3</td><td>17.9</td><td>34.0</td><td>23.5</td><td>30.9</td></tr>
+              <tr><td>Gemini-2.5-Pro&dagger;</td><td>39.3</td><td>11.6</td><td>31.1</td><td>13.9</td><td>12.5</td><td>4.9</td><td>27.0</td><td>19.6</td><td>19.9</td></tr>
+              <tr><td>Kimi-K2-Thinking&dagger;</td><td>30.0</td><td>7.1</td><td>51.0</td><td>12.2</td><td>15.4</td><td>8.2</td><td>39.6</td><td>15.7</td><td>22.4</td></tr>
+              <tr><td>Qwen3.5-4B</td><td>20.8</td><td>9.2</td><td>23.9</td><td>6.8</td><td>10.4</td><td>9.5</td><td>6.2</td><td>11.7</td><td>12.3</td></tr>
+              <tr class="am-ours"><td>&nbsp;&nbsp;+ GRPO + Ours</td><td>23.0</td><td>5.6</td><td>33.3</td><td>7.4</td><td>13.1</td><td>10.8</td><td>15.6</td><td>17.0</td><td>15.7</td></tr>
+              <tr><td>Qwen3.5-35B-A3B</td><td>33.9</td><td>7.6</td><td>53.2</td><td>14.6</td><td>18.6</td><td>11.4</td><td>35.9</td><td>23.5</td><td>24.8</td></tr>
+              <tr class="am-ours"><td>&nbsp;&nbsp;+ GRPO + Ours</td><td>39.8</td><td>11.1</td><td>53.8</td><td>15.6</td><td>21.9</td><td>17.7</td><td>41.2</td><td>23.7</td><td>28.1</td></tr>
+              <tr class="am-ours"><td>&nbsp;&nbsp;+ SAO + Ours</td><td>39.1</td><td>12.5</td><td>54.8</td><td>16.5</td><td>22.6</td><td>17.7</td><td>39.1</td><td>24.1</td><td>28.3</td></tr>
+            </table>
+          </div>
+          <p class="am-caption">&dagger; reference numbers reported by EnterpriseOps-Gym. Ours: mean over three independent runs; s.d. in the paper.</p>
+
+          <p style="margin-top:16px;">
+            <b>Out-of-domain.</b> The same policies improve on benchmarks the environments were never built for &mdash;
+            math, coding, scientific computing, knowledge, and independent tool use:
+          </p>
+
+          <div class="am-table-wrap">
+            <table class="am-table">
+              <tr><th>Model</th><th>AIME26</th><th>HMMT</th><th>LCB v5&ndash;6</th><th>SciCode</th><th>&tau;&sup3;-Airline</th><th>&tau;&sup3;-Retail</th><th>&tau;&sup3;-Telecom</th><th>BFCL</th><th>GPQA-D</th></tr>
+              <tr><td>Qwen3.5-4B</td><td>45.9</td><td>28.5</td><td>36.6</td><td>22.6</td><td>48.8</td><td>70.4</td><td>92.5</td><td>30.3</td><td>76.5</td></tr>
+              <tr class="am-ours"><td>&nbsp;&nbsp;+ GRPO + Ours</td>
+                <td>56.0 <span class="am-up">+10.1</span></td>
+                <td>35.4 <span class="am-up">+6.9</span></td>
+                <td>44.0 <span class="am-up">+7.4</span></td>
+                <td>25.7 <span class="am-up">+3.1</span></td>
+                <td>58.7 <span class="am-up">+9.9</span></td>
+                <td>73.6 <span class="am-up">+3.2</span></td>
+                <td>91.9 <span class="am-down">&minus;0.6</span></td>
+                <td>31.7 <span class="am-up">+1.4</span></td>
+                <td>77.5 <span class="am-up">+1.0</span></td></tr>
+              <tr><td>Qwen3.5-35B-A3B</td><td>91.0</td><td>77.0</td><td>74.3</td><td>29.7</td><td>39.1</td><td>52.7</td><td>49.1</td><td>31.1</td><td>82.8</td></tr>
+              <tr class="am-ours"><td>&nbsp;&nbsp;+ GRPO + Ours</td>
+                <td>91.9</td><td>80.0</td><td>79.0 <span class="am-up">+4.7</span></td><td>29.9</td>
+                <td>52.5 <span class="am-up">+13.4</span></td><td>57.1 <span class="am-up">+4.4</span></td>
+                <td>68.9 <span class="am-up">+19.8</span></td>
+                <td>42.5 <span class="am-up">+11.4</span></td><td>85.0 <span class="am-up">+2.2</span></td></tr>
+              <tr class="am-ours"><td>&nbsp;&nbsp;+ SAO + Ours</td>
+                <td>92.2</td><td>83.3 <span class="am-up">+6.3</span></td><td>78.6</td><td>28.3</td>
+                <td>50.9 <span class="am-up">+11.8</span></td><td>55.7</td>
+                <td>65.5 <span class="am-up">+16.4</span></td>
+                <td>42.1 <span class="am-up">+11.0</span></td><td>84.0</td></tr>
+            </table>
+          </div>
+          <p class="am-caption">
+            Mean over three independent evaluation runs (&plusmn; s.d. in the paper). Beyond the means, the 35B
+            policy becomes far more <i>consistent</i>: &tau;&sup3;-Telecom run-to-run s.d. shrinks from &plusmn;49.8
+            to &plusmn;20.5 after training.
+          </p>
+
+          <h2 class="am-h2">Agents can learn to author worlds</h2>
+          <p>
+            Because AgentMercury exposes its construction traces &mdash; brief-to-world generation, intermediate-stage
+            completion, validator-guided corruption repair, and intent-to-diff prediction &mdash; environment
+            authoring itself becomes a learnable task with an executable oracle: a generated world counts only if it
+            passes all 12 structural validators.
+          </p>
+
+          <div class="am-callout">
+            Fine-tuned on <b>29,823</b> construction-trace samples, Qwen3.5-35B-A3B goes from passing the full
+            authoring oracle on <b>3.3%</b> of held-out business briefs to <b>83.3%</b> &mdash; level with the
+            strongest API models (Claude Opus 4.8: 83.3%, DeepSeek-V4-Pro: 83.3%, GLM-5.2: 80.0%, GPT-5.4: 66.7%
+            zero-shot); Fisher exact p&nbsp;=&nbsp;1.2&times;10&#8315;&sup1;&#8304;. The dominant remaining failure
+            everywhere is <i>cross-service</i> structure &mdash; exactly what the executable oracle exists to catch.
+          </div>
+
+          <p>
+            Prompting and learning turn out to be different levers: an in-context construction recipe helps the raw
+            base model (3.3% &rarr; 20.0%) but <i>collapses</i> the fine-tuned one (83.3% &rarr; 10.0%) &mdash; once
+            the procedure is internalized in the weights, the recipe interferes with it. Worlds train agents;
+            trained agents can build new worlds. That closes a scalable loop between environment generation and
+            agent learning.
+          </p>
+
+          <h2 class="am-h2">Release</h2>
+          <ul class="am-release">
+            <li><b>Trained policy model</b> — <a href="https://huggingface.co/Minbyul/AgentMercury-Qwen3.5-4B">Minbyul/AgentMercury-Qwen3.5-4B</a> (iter149)</li>
+            <li><b>Environments &amp; tasks</b> — business scenarios, task instructions, and the RL corpus on the <a href="https://huggingface.co/collections/Minbyul/agentmercury">HF collection</a></li>
+            <li><b>Construction code-diffs</b> — the code-level differences that instantiate each environment</li>
+            <li><b>Training &amp; evaluation stack</b> — launchers, slime patches, reward/judge/arena code, eval harness at <a href="https://github.com/minstar/AgentMercury">github.com/minstar/AgentMercury</a></li>
+          </ul>
+
+          <h2 class="am-h2" id="bibtex">BibTeX</h2>
+          <pre class="am-bibtex">@article{jeong2026agentmercury,
+  title   = {AgentMercury: Your Agent Can Synthesize Verifiable Environments
+             for Business Scenarios at Scale},
+  author  = {Jeong, Minbyul and Yoon, Chanwoong},
+  journal = {arXiv preprint},
+  year    = {2026}
+}</pre>
+
+          <p class="am-updated">Last updated 2026-08-19.</p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row">
+      <div class="col">
+        <p style="text-align:right;font-size:small;">
+          Template based on <a href="https://jonbarron.info/">Jon Barron's website</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
